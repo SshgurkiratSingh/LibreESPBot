@@ -88,7 +88,6 @@ jobs:
           version: '6.6.2'
           host: 'linux'
           target: 'desktop'
-          modules: 'qtmultimedia qtconnectivity qtshadertools'
 
       - name: Configure & Build
         run: |
@@ -138,7 +137,6 @@ jobs:
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2019_64'
-          modules: 'qtmultimedia qtconnectivity qtshadertools'
 
       - name: Build Qt Controller Application
         shell: cmd
@@ -197,7 +195,6 @@ jobs:
           version: '6.6.2'
           host: 'linux'
           target: 'desktop'
-          modules: 'qtmultimedia qtconnectivity qtshadertools'
 
       - name: Install Qt 6.6.2 for Android
         uses: jurplel/install-qt-action@v3
@@ -206,7 +203,6 @@ jobs:
           host: 'linux'
           target: 'android'
           arch: 'android_arm64_v8a'
-          modules: 'qtmultimedia qtconnectivity qtshadertools'
 
       - name: Configure and Build APK
         env:
