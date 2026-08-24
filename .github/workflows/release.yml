@@ -220,10 +220,16 @@ jobs:
             -DQT_ANDROID_ABIS=arm64-v8a
           cmake --build build --target apk
 
-      - name: Move and Rename APK
+      - name: Move, Rename, and Sign APK
         run: |
           mkdir -p build_artifacts/android
           find build/android-build -name "*.apk" -exec cp {} build_artifacts/android/RoverGroundStation-Android-arm64.apk \;
+          # Generate a temporary release keystore
+          keytool -genkey -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=LibreESPBot, OU=Engineering, O=Rover, L=City, S=State, C=US"
+          # Find apksigner
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -r | head -n 1)
+          # V2/V3 Sign the APK so it can be installed on devices
+          $APKSIGNER sign --ks release.keystore --ks-pass pass:android --key-pass pass:android build_artifacts/android/RoverGroundStation-Android-arm64.apk
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
