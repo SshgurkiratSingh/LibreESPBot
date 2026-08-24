@@ -1,0 +1,10 @@
+.pio/
+build/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+*.o
+*.bin
+*.elf
+*.a
+*.map

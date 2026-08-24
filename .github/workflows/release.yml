@@ -1,0 +1,249 @@
+name: Automated Multi-Platform Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # =========================================================================
+  # JOB 1: Compile PlatformIO Embedded Firmwares
+  # =========================================================================
+  build-firmware:
+    name: Build PlatformIO Firmware Matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO Core
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio esptool
+
+      - name: Compile All Firmware Profiles
+        working-directory: firmware/main_controller
+        run: |
+          pio run -e rover_v2_mpu6050_qmc5883l_tb6612
+          pio run -e rover_v2_bmi160_lis3mdl_tb6612
+          pio run -e rover_v2_mpu6050_hmc5883l_tb6612
+          pio run -e firmware_sensor_calibration
+
+      - name: Compile ESP32-CAM Firmware
+        working-directory: firmware/cam_streamer
+        run: pio run
+
+      - name: Generate Consolidated Flash Images
+        run: |
+          mkdir -p build_artifacts/firmware
+          # Package merged flash images (Bootloader 0x1000 + Partitions 0x8000 + App 0x10000)
+          python -m esptool --chip esp32 merge_bin -o build_artifacts/firmware/rover_v2_mpu_qmc_merged.bin \
+            --flash_mode dio --flash_freq 40m --flash_size 4MB \
+            0x1000 firmware/main_controller/.pio/build/rover_v2_mpu6050_qmc5883l_tb6612/bootloader.bin \
+            0x8000 firmware/main_controller/.pio/build/rover_v2_mpu6050_qmc5883l_tb6612/partitions.bin \
+            0x10000 firmware/main_controller/.pio/build/rover_v2_mpu6050_qmc5883l_tb6612/firmware.bin
+
+          python -m esptool --chip esp32 merge_bin -o build_artifacts/firmware/rover_calibration_merged.bin \
+            --flash_mode dio --flash_freq 40m --flash_size 4MB \
+            0x1000 firmware/main_controller/.pio/build/firmware_sensor_calibration/bootloader.bin \
+            0x8000 firmware/main_controller/.pio/build/firmware_sensor_calibration/partitions.bin \
+            0x10000 firmware/main_controller/.pio/build/firmware_sensor_calibration/firmware.bin
+
+      - name: Upload Firmware Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-binaries
+          path: build_artifacts/firmware/*
+
+  # =========================================================================
+  # JOB 2: Build Desktop Application (Linux AppImage)
+  # =========================================================================
+  build-linux:
+    name: Build Linux AppImage (Qt 6)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libgl1-mesa-dev libglib2.0-0 \
+            libpulse-dev libx11-xcb1 libxkbcommon-x11-0 libasound2-dev libavcodec-dev \
+            libavformat-dev libswscale-dev libavutil-dev wget
+
+      - name: Install Qt 6.6.2
+        uses: jurplel/install-qt@v3
+        with:
+          version: '6.6.2'
+          host: 'linux'
+          target: 'desktop'
+          modules: 'qtmultimedia qtconnectivity qtshadertools'
+
+      - name: Configure & Build
+        run: |
+          cmake -B build -S software/controller_app -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=${{ env.QT_ROOT_DIR }}
+          cmake --build build --config Release
+
+      - name: Package AppImage
+        run: |
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy*.AppImage
+
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cp build/RoverGroundStation AppDir/usr/bin/
+          cp software/controller_app/assets/rover.desktop AppDir/usr/share/applications/
+          cp software/controller_app/assets/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/rover.png
+
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage
+          mkdir -p build_artifacts/desktop
+          mv RoverGroundStation*.AppImage build_artifacts/desktop/RoverGroundStation-Linux-x86_64.AppImage
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: build_artifacts/desktop/*.AppImage
+
+  # =========================================================================
+  # JOB 3: Build Desktop Application (Windows Standalone ZIP)
+  # =========================================================================
+  build-windows:
+    name: Build Windows Binary (Qt 6 MSVC)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Qt 6.6.2
+        uses: jurplel/install-qt@v3
+        with:
+          version: '6.6.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          modules: 'qtmultimedia qtconnectivity qtshadertools'
+
+      - name: Build Qt Controller Application
+        shell: cmd
+        run: |
+          cmake -B build -S software/controller_app -G "Ninja" ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_PREFIX_PATH="%QT_ROOT_DIR%"
+          cmake --build build --config Release
+
+      - name: Execute windeployqt & Package
+        shell: cmd
+        run: |
+          mkdir dist
+          copy build\RoverGroundStation.exe dist\
+          "%QT_ROOT_DIR%\bin\windeployqt.exe" --qmldir software/controller_app/qml --release --no-translations dist\RoverGroundStation.exe
+          powershell Compress-Archive -Path dist\* -DestinationPath RoverGroundStation-Windows-x64.zip
+          mkdir build_artifacts\windows
+          move RoverGroundStation-Windows-x64.zip build_artifacts\windows\
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: build_artifacts/windows/*.zip
+
+  # =========================================================================
+  # JOB 4: Build Android Application (Release APK)
+  # =========================================================================
+  build-android:
+    name: Build Android Universal APK (Qt 6 Android ARM64/v7a)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK Tools
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK & Commandline Tools
+        run: |
+          sdkmanager --install "ndk;25.1.8937393" "build-tools;34.0.0" "platforms;android-34"
+
+      - name: Install Qt 6.6.2 for Android
+        uses: jurplel/install-qt@v3
+        with:
+          version: '6.6.2'
+          host: 'linux'
+          target: 'android'
+          arch: 'android_arm64_v8a'
+          modules: 'qtmultimedia qtconnectivity qtshadertools'
+
+      - name: Configure and Build APK
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/25.1.8937393
+        run: |
+          cmake -B build -S software/controller_app -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=${{ env.QT_ROOT_DIR }} \
+            -DCMAKE_TOOLCHAIN_FILE=${{ env.QT_ROOT_DIR }}/lib/cmake/Qt6/qt.toolchain.cmake \
+            -DQT_CHAINLOAD_TOOLCHAIN_FILE=${{ env.ANDROID_NDK_ROOT }}/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-26 \
+            -DQT_ANDROID_ABIS=arm64-v8a
+          cmake --build build --target apk
+
+      - name: Move and Rename APK
+        run: |
+          mkdir -p build_artifacts/android
+          find build/android-build -name "*.apk" -exec cp {} build_artifacts/android/RoverGroundStation-Android-arm64.apk \;
+
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build_artifacts/android/*.apk
+
+  # =========================================================================
+  # JOB 5: Publish Release
+  # =========================================================================
+  publish-release:
+    name: Publish Release Packages
+    needs: [build-firmware, build-linux, build-windows, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release_staging
+
+      - name: Collate Assets
+        run: |
+          mkdir -p release_out
+          find release_staging/ -type f -exec cp {} release_out/ \;
+
+      - name: Generate GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_out/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
