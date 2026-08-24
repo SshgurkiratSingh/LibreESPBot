@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     commandEmitter.setTargetAddress("192.168.4.1", 8888); 
     commandEmitter.startEmitting(20);
 
-    const QUrl url(u"qrc:/RoverGroundStation/qml/main.qml"_qs);
+    const QUrl url(u"qrc:/qt/qml/RoverControl/qml/main.qml"_qs);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {
         if (!obj && url == objUrl)
