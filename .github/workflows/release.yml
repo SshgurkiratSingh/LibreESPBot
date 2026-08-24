@@ -107,7 +107,7 @@ jobs:
           cp software/controller_app/assets/rover.desktop AppDir/usr/share/applications/
           cp software/controller_app/assets/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/rover.png
 
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage
+          QML_SOURCES_PATHS=software/controller_app/qml ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage
           mkdir -p build_artifacts/desktop
           mv RoverGroundStation*.AppImage build_artifacts/desktop/RoverGroundStation-Linux-x86_64.AppImage
 
