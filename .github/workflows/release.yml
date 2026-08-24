@@ -94,7 +94,7 @@ jobs:
         run: |
           cmake -B build -S software/controller_app -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=${{ env.QT_ROOT_DIR }}
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/Qt/6.6.2/gcc_64
           cmake --build build --config Release
 
       - name: Package AppImage
@@ -145,7 +145,7 @@ jobs:
         run: |
           cmake -B build -S software/controller_app -G "Ninja" ^
             -DCMAKE_BUILD_TYPE=Release ^
-            -DCMAKE_PREFIX_PATH="%QT_ROOT_DIR%"
+            -DCMAKE_PREFIX_PATH="%GITHUB_WORKSPACE%\Qt\6.6.2\msvc2019_64"
           cmake --build build --config Release
 
       - name: Execute windeployqt & Package
@@ -153,7 +153,7 @@ jobs:
         run: |
           mkdir dist
           copy build\RoverGroundStation.exe dist\
-          "%QT_ROOT_DIR%\bin\windeployqt.exe" --qmldir software/controller_app/qml --release --no-translations dist\RoverGroundStation.exe
+          "%GITHUB_WORKSPACE%\Qt\6.6.2\msvc2019_64\bin\windeployqt.exe" --qmldir software/controller_app/qml --release --no-translations dist\RoverGroundStation.exe
           powershell Compress-Archive -Path dist\* -DestinationPath RoverGroundStation-Windows-x64.zip
           mkdir build_artifacts\windows
           move RoverGroundStation-Windows-x64.zip build_artifacts\windows\
@@ -205,8 +205,8 @@ jobs:
         run: |
           cmake -B build -S software/controller_app -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=${{ env.QT_ROOT_DIR }} \
-            -DCMAKE_TOOLCHAIN_FILE=${{ env.QT_ROOT_DIR }}/lib/cmake/Qt6/qt.toolchain.cmake \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/Qt/6.6.2/android_arm64_v8a \
+            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/Qt/6.6.2/android_arm64_v8a/lib/cmake/Qt6/qt.toolchain.cmake \
             -DQT_CHAINLOAD_TOOLCHAIN_FILE=${{ env.ANDROID_NDK_ROOT }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26 \
