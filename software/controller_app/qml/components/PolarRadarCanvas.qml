@@ -10,7 +10,8 @@ Canvas {
         ctx.clearRect(0, 0, width, height);
         
         var centerX = width / 2;
-        var centerY = height; // Base of the radar
+        var centerY = height / 2; // Center of the 360 radar
+        var maxRadius = Math.min(width, height) / 2;
         
         // Draw distance rings
         ctx.strokeStyle = "#00E5FF";
@@ -19,9 +20,9 @@ Canvas {
         
         var ringDistances = [500, 1000, 1500, 2000]; // mm
         for (let i = 0; i < ringDistances.length; ++i) {
-            let r = (ringDistances[i] / maxDistance) * (width / 2);
+            let r = (ringDistances[i] / maxDistance) * maxRadius;
             ctx.beginPath();
-            ctx.arc(centerX, centerY, r, Math.PI, 0);
+            ctx.arc(centerX, centerY, r, 0, 2 * Math.PI);
             ctx.stroke();
         }
         
@@ -31,9 +32,9 @@ Canvas {
         for (let i = 0; i < points.length; ++i) {
             let p = points[i];
             
-            // Map mm to pixels
-            let px = centerX + (p.x / maxDistance) * (width / 2);
-            let py = centerY - (p.y / maxDistance) * (height / 2);
+            // Map mm to pixels (p.x and p.y can now be negative/positive covering all 4 quadrants)
+            let px = centerX + (p.x / maxDistance) * maxRadius;
+            let py = centerY - (p.y / maxDistance) * maxRadius;
             
             // Calculate distance for color coding
             let dist = Math.sqrt(p.x * p.x + p.y * p.y);
