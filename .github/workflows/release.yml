@@ -187,6 +187,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build
+          echo "y" | sdkmanager --uninstall "platforms;android-36-ext19" "platforms;android-36" "platforms;android-35" "platforms;android-35-ext13" || true
           sdkmanager --install "ndk;25.1.8937393" "build-tools;34.0.0" "platforms;android-34"
 
       - name: Install Qt 6.6.2 Host Tools
