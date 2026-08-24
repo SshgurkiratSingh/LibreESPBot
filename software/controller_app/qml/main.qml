@@ -10,6 +10,7 @@ Window {
     width: 1280
     height: 720
     visible: true
+    visibility: Qt.platform.os === "android" ? Window.FullScreen : Window.Windowed
     title: qsTr("ESP32 Rover Ground Station")
     color: Theme.backgroundColor // #121212
 
@@ -22,7 +23,7 @@ Window {
         // Left Sidebar: Radar & Hardware Inspector
         Rectangle {
             Layout.fillHeight: true
-            Layout.preferredWidth: 350
+            Layout.preferredWidth: mainWindow.width * 0.30
             color: "#1e1e1e"
 
             ColumnLayout {
@@ -66,6 +67,8 @@ Window {
 
             ArtificialHorizon {
                 anchors.centerIn: parent
+                width: Math.min(250, parent.width * 0.8)
+                height: width
                 // pitch: telemetryClient.pitch
                 // roll: telemetryClient.roll
             }
@@ -74,7 +77,7 @@ Window {
         // Right Sidebar: Controls
         Rectangle {
             Layout.fillHeight: true
-            Layout.preferredWidth: 350
+            Layout.preferredWidth: mainWindow.width * 0.30
             color: "#1e1e1e"
 
             ColumnLayout {
@@ -92,17 +95,16 @@ Window {
                     Layout.fillWidth: true
                     VirtualJoystick {
                         id: leftJoystick
-                        Layout.preferredWidth: 150
-                        Layout.preferredHeight: 150
+                        Layout.preferredWidth: parent.width * 0.45
+                        Layout.preferredHeight: width
                         axisXEnabled: false
-                        // onAxisYChanged: commandEmitter.updateThrottle(axisY)
                     }
+                    Item { Layout.fillWidth: true } // Spacer between joysticks
                     VirtualJoystick {
                         id: rightJoystick
-                        Layout.preferredWidth: 150
-                        Layout.preferredHeight: 150
+                        Layout.preferredWidth: parent.width * 0.45
+                        Layout.preferredHeight: width
                         axisYEnabled: false
-                        // onAxisXChanged: commandEmitter.updateSteering(axisX)
                     }
                 }
 
