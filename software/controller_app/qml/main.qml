@@ -13,8 +13,6 @@ Window {
     title: qsTr("ESP32 Rover Ground Station")
     color: Theme.backgroundColor // #121212
 
-    Theme { id: theme }
-
     // Backend context properties assumed available: telemetryClient, commandEmitter, discoveryWorker, radarCloud
 
     RowLayout {

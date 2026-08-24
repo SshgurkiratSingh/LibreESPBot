@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QVariant>
 #include <QVector>
 #include <QPointF>
 #include <QMutex>
