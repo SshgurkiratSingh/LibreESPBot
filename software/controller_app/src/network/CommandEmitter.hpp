@@ -13,6 +13,7 @@ public:
     explicit CommandEmitter(QObject *parent = nullptr);
     ~CommandEmitter();
 
+public slots:
     void setTargetAddress(const QString& ip, quint16 port = 8888);
     void startEmitting(int intervalMs = 20); // 50 Hz = 20 ms
     void stopEmitting();
