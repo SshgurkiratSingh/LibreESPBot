@@ -7,6 +7,10 @@ CommandEmitter::CommandEmitter(QObject *parent)
     m_packet.preamble = 0x55AA;
     m_packet.sequenceId = 0;
     
+    // Bind to 8889 with ShareAddress so outgoing packets originate from 8889.
+    // This allows the ESP32's telemetry reply to 8889 to traverse the stateful firewall.
+    m_socket->bind(QHostAddress::Any, 8889, QUdpSocket::ShareAddress);
+    
     connect(m_timer, &QTimer::timeout, this, &CommandEmitter::sendCommandPacket);
 }
 

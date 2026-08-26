@@ -4,6 +4,7 @@
 
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <ESPmDNS.h>
 #include "Types.hpp"
 
 // Hardware Drivers
@@ -42,6 +43,9 @@ int16_t lastRightPwm = 0;
 
 unsigned long lastTelemetryTime = 0;
 const unsigned long TELEMETRY_INTERVAL = 20; // 50 Hz
+
+unsigned long lastDiscoveryTime = 0;
+const unsigned long DISCOVERY_INTERVAL = 1000; // 1 Hz
 
 // ============================================================
 // Setup
@@ -87,6 +91,16 @@ void setup() {
         Serial.println("\nConnected to WiFi.");
         Serial.print("IP address: ");
         Serial.println(WiFi.localIP());
+
+        // Setup mDNS for auto-discovery by the controller app
+        if (!MDNS.begin("esp32rover")) {
+            Serial.println("Error setting up MDNS responder!");
+        } else {
+            MDNS.addService("roverctrl", "udp", UDP_PORT);
+            MDNS.addServiceTxt("roverctrl", "udp", "drv", "TB6612");
+            MDNS.addServiceTxt("roverctrl", "udp", "hw", "Rover V2");
+            Serial.println("mDNS responder started: _roverctrl._udp");
+        }
     } else {
         Serial.println("\nFailed to connect to WiFi.");
     }
@@ -196,12 +210,21 @@ void loop() {
         size_t tDataLen = sizeof(VehicleTelemetryPacket) - sizeof(uint16_t);
         telemetry.crc16 = calculateCrc16((const uint8_t*)&telemetry, tDataLen);
 
-        // Send Reply
         if (remotePort != 0) {
-            udp.beginPacket(remoteIP, remotePort);
+            udp.beginPacket(remoteIP, 8889); // Ground Station telemetry listener port
             udp.write((const uint8_t*)&telemetry, sizeof(VehicleTelemetryPacket));
             udp.endPacket();
         }
+    }
+
+    // 4. Discovery Beacon (1Hz)
+    // The Qt app is passively listening on 5353 for a packet containing _roverctrl._udp.local and drv=
+    if (millis() - lastDiscoveryTime >= DISCOVERY_INTERVAL) {
+        lastDiscoveryTime = millis();
+        udp.beginPacket(IPAddress(224, 0, 0, 251), 5353);
+        const char* beacon = "_roverctrl._udp.local\0drv=TB6612\0hw=Rover V2";
+        udp.write((const uint8_t*)beacon, 44);
+        udp.endPacket();
     }
 }
 

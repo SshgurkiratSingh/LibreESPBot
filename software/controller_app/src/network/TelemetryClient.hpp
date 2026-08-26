@@ -11,6 +11,7 @@ class TelemetryClient : public QObject {
     Q_PROPERTY(float pitch READ pitch NOTIFY telemetryUpdated)
     Q_PROPERTY(float roll READ roll NOTIFY telemetryUpdated)
     Q_PROPERTY(float yaw READ yaw NOTIFY telemetryUpdated)
+    Q_PROPERTY(float headingCompassDeg READ headingCompassDeg NOTIFY telemetryUpdated)
     Q_PROPERTY(float batteryVoltage READ batteryVoltage NOTIFY telemetryUpdated)
     Q_PROPERTY(int tof1DistMm READ tof1DistMm NOTIFY telemetryUpdated)
     Q_PROPERTY(int tof2DistMm READ tof2DistMm NOTIFY telemetryUpdated)
@@ -25,6 +26,7 @@ public:
     float pitch() const { return m_packet.pitchDeg; }
     float roll() const { return m_packet.rollDeg; }
     float yaw() const { return m_packet.yawDeg; }
+    float headingCompassDeg() const { return m_packet.headingCompassDeg; }
     float batteryVoltage() const { return m_packet.batteryVoltage; }
     int tof1DistMm() const { return m_packet.tof1DistMm; }
     int tof2DistMm() const { return m_packet.tof2DistMm; }
