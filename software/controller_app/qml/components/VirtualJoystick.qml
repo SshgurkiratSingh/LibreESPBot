@@ -18,6 +18,15 @@ Item {
         return Math.round(expVal * 1023);
     }
     
+    function setExternal(xNorm, yNorm) {
+        // xNorm, yNorm are from -1.0 to 1.0
+        stick.x = (base.width - stick.width) / 2 + (xNorm * (base.width / 2.2));
+        stick.y = (base.height - stick.height) / 2 - (yNorm * (base.height / 2.2));
+        
+        root.axisX = applyCurve(xNorm * 1023);
+        root.axisY = applyCurve(yNorm * 1023);
+    }
+    
     Rectangle {
         id: base
         anchors.fill: parent

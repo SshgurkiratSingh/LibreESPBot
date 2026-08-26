@@ -7,8 +7,11 @@
 #include "network/DiscoveryWorker.hpp"
 #include "mapping/RadarPointCloud.hpp"
 
+#include <QQuickStyle>
+
 int main(int argc, char *argv[])
 {
+    QQuickStyle::setStyle("Material");
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine engine;
@@ -30,6 +33,12 @@ int main(int argc, char *argv[])
     telemetryClient.startListening(8889);
     // Command emitter target is dynamically set upon mDNS discovery, but we can set a default
     commandEmitter.setTargetAddress("192.168.4.1", 8888); 
+    
+    QObject::connect(&discoveryWorker, &DiscoveryWorker::roverDiscovered,
+                     &app, [&commandEmitter](const QString& ip, const QString& profile) {
+        qDebug() << "Auto-configuring CommandEmitter to discovered IP:" << ip;
+        commandEmitter.setTargetAddress(ip, 8888);
+    });
     commandEmitter.startEmitting(20);
 
     const QUrl url(u"qrc:/RoverControl/qml/main.qml"_qs);

@@ -7,7 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network QuickControls2)
 
 set(SOURCES
     src/main.cpp
@@ -25,6 +25,7 @@ target_link_libraries(RoverGroundStation PRIVATE
     Qt6::Qml
     Qt6::Quick
     Qt6::Network
+    Qt6::QuickControls2
 )
 
 # QML files
@@ -38,6 +39,7 @@ qt_add_qml_module(RoverGroundStation
         qml/components/VideoViewport.qml
         qml/components/ArtificialHorizon.qml
         qml/components/HardwareInspector.qml
+        qml/components/KinematicsView3D.qml
         qml/theme/Theme.qml
 )
 

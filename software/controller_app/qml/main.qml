@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
 import "components"
 import "theme"
@@ -12,14 +13,22 @@ Window {
     visible: true
     visibility: Qt.platform.os === "android" ? Window.FullScreen : Window.Windowed
     title: qsTr("ESP32 Rover Ground Station")
-    color: Theme.backgroundColor // #121212
+    color: "#121212"
+    
+    // Globally accessible property
+    property bool isMobilePortrait: width < height
+    
+    Material.theme: Material.Dark
+    Material.accent: Material.Green
 
     // Keyboard Input State
-    property int keyThrottle: 0
-    property int keySteering: 0
+    property real keyThrottle: 0.0
+    property real keySteering: 0.0
+    
+    property bool enable3dKinematics: false
 
-    onKeyThrottleChanged: if (typeof commandEmitter !== "undefined") commandEmitter.updateThrottle(keyThrottle)
-    onKeySteeringChanged: if (typeof commandEmitter !== "undefined") commandEmitter.updateSteering(keySteering)
+    onKeyThrottleChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
+    onKeySteeringChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
 
     Item {
         id: rootItem
@@ -28,10 +37,10 @@ Window {
 
         Keys.onPressed: (event) => {
             if (event.isAutoRepeat) return;
-            if (event.key === Qt.Key_W || event.key === Qt.Key_Up) keyThrottle = 1023;
-            else if (event.key === Qt.Key_S || event.key === Qt.Key_Down) keyThrottle = -1023;
-            else if (event.key === Qt.Key_A || event.key === Qt.Key_Left) keySteering = -1023;
-            else if (event.key === Qt.Key_D || event.key === Qt.Key_Right) keySteering = 1023;
+            if (event.key === Qt.Key_W || event.key === Qt.Key_Up) keyThrottle = 1.0;
+            else if (event.key === Qt.Key_S || event.key === Qt.Key_Down) keyThrottle = -1.0;
+            else if (event.key === Qt.Key_A || event.key === Qt.Key_Left) keySteering = -1.0;
+            else if (event.key === Qt.Key_D || event.key === Qt.Key_Right) keySteering = 1.0;
         }
 
         Keys.onReleased: (event) => {
@@ -40,15 +49,21 @@ Window {
             else if (event.key === Qt.Key_A || event.key === Qt.Key_Left || event.key === Qt.Key_D || event.key === Qt.Key_Right) keySteering = 0;
         }
 
-        RowLayout {
+        GridLayout {
             anchors.fill: parent
-            spacing: 0
+            anchors.margins: 10
+            rowSpacing: 15
+            columnSpacing: 15
+            
+            columns: mainWindow.isMobilePortrait ? 1 : 3
 
             // Left Sidebar: Radar & Hardware Inspector
             Rectangle {
-                Layout.fillHeight: true
-                Layout.preferredWidth: mainWindow.width * 0.25
+                Layout.fillHeight: !mainWindow.isMobilePortrait
+                Layout.preferredHeight: mainWindow.isMobilePortrait ? 400 : -1
+                Layout.preferredWidth: mainWindow.isMobilePortrait ? parent.width : mainWindow.width * 0.25
                 color: "#1e1e1e"
+                radius: 10
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -56,7 +71,7 @@ Window {
 
                     Text {
                         text: "RADAR SWEEP"
-                        color: Theme.accentCyan
+                        color: "#00E5FF" // Cyan
                         font.pixelSize: 18
                         font.bold: true
                     }
@@ -73,7 +88,6 @@ Window {
                     HardwareInspector {
                         id: hwInspector
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 150
                     }
                 }
             }
@@ -81,12 +95,73 @@ Window {
             // Center Viewport: Video & Horizon
             Rectangle {
                 Layout.fillHeight: true
+                Layout.minimumHeight: mainWindow.isMobilePortrait ? 400 : 0
                 Layout.fillWidth: true
                 color: "black"
+                radius: 10
                 
                 // Placeholder for VideoViewport fills the background
                 VideoViewport {
                     anchors.fill: parent
+                    visible: !enable3dKinematics
+                }
+                
+                // 3D Kinematics Placeholder (Visible when camera is disabled)
+                Rectangle {
+                    anchors.fill: parent
+                    color: "#111"
+                    visible: enable3dKinematics
+                    
+                    KinematicsView3D {
+                        anchors.fill: parent
+                        pitch: typeof telemetryClient !== "undefined" ? telemetryClient.pitch : 0.0
+                        roll: typeof telemetryClient !== "undefined" ? telemetryClient.roll : 0.0
+                        yaw: typeof telemetryClient !== "undefined" ? telemetryClient.yaw : 0.0
+                    }
+                }
+
+                // Premium HUD Overlay (Top Pill)
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.topMargin: 20
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: 140
+                    height: 36
+                    radius: 18
+                    color: Qt.rgba(0.0, 0.0, 0.0, 0.6)
+                    border.color: Qt.rgba(1.0, 1.0, 1.0, 0.1)
+                    border.width: 1
+                    
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 15
+                        anchors.rightMargin: 15
+                        spacing: 10
+                        
+                        Text {
+                            text: "HDG"
+                            color: "#888888"
+                            font.pixelSize: 11
+                            font.bold: true
+                            font.letterSpacing: 1
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+                        
+                        Text {
+                            property real hdg: typeof telemetryClient !== "undefined" ? telemetryClient.yaw : 0.0
+                            // Normalize to 0-360 for compass reading
+                            property real compassHdg: (hdg % 360 + 360) % 360
+                            
+                            text: Math.round(compassHdg) + "°"
+                            color: "white"
+                            font.pixelSize: 16
+                            font.bold: true
+                            font.family: "Monospace"
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignRight
+                        }
+                    }
                 }
 
                 // Small Artificial Horizon overlay in the top-right corner
@@ -96,8 +171,8 @@ Window {
                     anchors.margins: 20
                     width: Math.min(150, parent.width * 0.3)
                     height: width
-                    // pitch: telemetryClient.pitch
-                    // roll: telemetryClient.roll
+                    pitch: typeof telemetryClient !== "undefined" ? telemetryClient.pitch : 0.0
+                    roll: typeof telemetryClient !== "undefined" ? telemetryClient.roll : 0.0
                 }
                 
                 // Settings button overlay in the top-left corner
@@ -112,9 +187,11 @@ Window {
 
             // Right Sidebar: Controls
             Rectangle {
-                Layout.fillHeight: true
-                Layout.preferredWidth: mainWindow.width * 0.25
+                Layout.fillHeight: !mainWindow.isMobilePortrait
+                Layout.preferredHeight: mainWindow.isMobilePortrait ? 450 : -1
+                Layout.preferredWidth: mainWindow.isMobilePortrait ? parent.width : mainWindow.width * 0.25
                 color: "#1e1e1e"
+                radius: 10
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -122,7 +199,7 @@ Window {
 
                     Text {
                         text: "ACTUATION"
-                        color: Theme.accentGreen
+                        color: "#00E676" // Green
                         font.pixelSize: 18
                         font.bold: true
                     }
@@ -163,8 +240,8 @@ Window {
     // Settings Drawer for parameters configuration
     Drawer {
         id: settingsDrawer
-        width: 350
-        height: mainWindow.height
+        width: parent.width // Full screen responsive width
+        height: parent.height // Full screen responsive height
         edge: Qt.LeftEdge
         
         background: Rectangle {
@@ -172,75 +249,137 @@ Window {
             border.color: "#444"
         }
 
-        ColumnLayout {
+        ScrollView {
             anchors.fill: parent
-            anchors.margins: 20
-            spacing: 15
+            anchors.margins: 40 // Larger margins for full screen visibility
+            contentWidth: availableWidth // Fix horizontal scrolling bug
+            clip: true
+            
+            ColumnLayout {
+                width: parent.width
+                spacing: 20
 
-            Text {
-                text: "SYSTEM SETTINGS"
-                color: "white"
-                font.pixelSize: 20
-                font.bold: true
-                Layout.alignment: Qt.AlignHCenter
-            }
+                Text {
+                    text: "SYSTEM SETTINGS"
+                    color: "white"
+                    font.pixelSize: 20
+                    font.bold: true
+                    Layout.alignment: Qt.AlignHCenter
+                }
 
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: "#555"
-            }
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: "#555"
+                }
 
-            Text { text: "Manual Connection Override"; color: "white"; font.bold: true }
+                Text { text: "Display Configuration"; color: "white"; font.bold: true }
+                
+                Switch {
+                    Layout.fillWidth: true
+                    text: "3D Kinematics View (Disable Camera)"
+                    checked: enable3dKinematics
+                    onCheckedChanged: enable3dKinematics = checked
+                }
+                
+                Switch {
+                    Layout.fillWidth: true
+                    text: "HUD Debug Overlays"
+                    checked: true
+                }
 
-            TextField {
-                id: ipField
-                Layout.fillWidth: true
-                placeholderText: "Target IP Address (e.g. 192.168.4.1)"
-                text: "192.168.4.1"
-                color: "white"
-            }
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: "#555"
+                    Layout.topMargin: 5
+                    Layout.bottomMargin: 5
+                }
 
-            TextField {
-                id: portField
-                Layout.fillWidth: true
-                placeholderText: "Target Port"
-                text: "8888"
-                color: "white"
-                validator: IntValidator { bottom: 1; top: 65535 }
-            }
+                Text { text: "Rover Chassis & Control"; color: "white"; font.bold: true }
 
-            Button {
-                Layout.fillWidth: true
-                text: "Connect"
-                onClicked: {
-                    if (typeof commandEmitter !== "undefined") {
-                        commandEmitter.setTargetAddress(ipField.text, parseInt(portField.text))
-                    }
+                ComboBox {
+                    Layout.fillWidth: true
+                    model: ["Tank Drive (Differential)", "Ackermann Steering", "Mecanum (Omni)"]
+                }
+                
+                Text { text: "Max Throttle Limit"; color: "gray"; font.pixelSize: 12 }
+                Slider {
+                    Layout.fillWidth: true
+                    from: 0; to: 100; value: 100
+                }
+                
+                Text { text: "Steering Sensitivity / Expo"; color: "gray"; font.pixelSize: 12 }
+                Slider {
+                    Layout.fillWidth: true
+                    from: 0.1; to: 2.0; value: 1.0
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: "#555"
+                    Layout.topMargin: 5
+                    Layout.bottomMargin: 5
+                }
+
+                Text { text: "Hardware & Telemetry"; color: "white"; font.bold: true }
+
+                ComboBox {
+                    Layout.fillWidth: true
+                    model: ["V1 (ESP8266 + L298N)", "V2 (ESP32 + TB6612)", "V3 (CAN / ODrive)"]
+                    currentIndex: 1 // Default to V2
+                }
+                
+                ComboBox {
+                    Layout.fillWidth: true
+                    model: ["Telemetry: 50 Hz (Fast)", "Telemetry: 20 Hz (Normal)", "Telemetry: 5 Hz (Low Bandwidth)"]
+                }
+                
+                ComboBox {
+                    Layout.fillWidth: true
+                    model: ["Motor PWM: 1 kHz", "Motor PWM: 20 kHz (Silent)", "Motor PWM: 500 Hz"]
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: "#555"
+                    Layout.topMargin: 5
+                    Layout.bottomMargin: 5
+                }
+
+                Text { text: "Safety & Fusion Overrides"; color: "white"; font.bold: true }
+                
+                Text { text: "Low Battery Warning (Volts)"; color: "gray"; font.pixelSize: 12 }
+                Slider {
+                    Layout.fillWidth: true
+                    from: 9.0; to: 12.6; value: 11.1
+                }
+                
+                Text { text: "Collision Stop Distance (mm)"; color: "gray"; font.pixelSize: 12 }
+                Slider {
+                    Layout.fillWidth: true
+                    from: 50; to: 500; value: 150
+                }
+                
+                ComboBox {
+                    Layout.fillWidth: true
+                    model: ["Failsafe Timeout: 500ms", "Failsafe Timeout: 1s", "Failsafe Timeout: 2s"]
+                }
+                
+                Text { text: "Mahony AHRS Kp Gain"; color: "gray"; font.pixelSize: 12 }
+                TextField {
+                    Layout.fillWidth: true
+                    text: "10.0"
+                }
+                
+                Text { text: "Mahony AHRS Ki Gain"; color: "gray"; font.pixelSize: 12 }
+                TextField {
+                    Layout.fillWidth: true
+                    text: "0.0"
                 }
             }
-
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: "#555"
-            }
-
-            Text { text: "Rover Configuration"; color: "white"; font.bold: true }
-
-            ComboBox {
-                id: modeSelect
-                Layout.fillWidth: true
-                model: ["Tank Drive (Differential)", "Ackermann Steering"]
-            }
-
-            ComboBox {
-                id: versionSelect
-                Layout.fillWidth: true
-                model: ["V1 (ESP8266 + L298N)", "V2 (ESP32 + TB6612)", "V3 (CAN Bus / ODrive)"]
-            }
-
-            Item { Layout.fillHeight: true } // Spacer pushes everything up
         }
     }
 }

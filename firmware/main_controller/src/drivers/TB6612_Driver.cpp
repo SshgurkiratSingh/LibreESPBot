@@ -2,13 +2,13 @@
 #include <Arduino.h>
 #include <cmath>
 
-#define PWMA 25
-#define AIN1 26
-#define AIN2 27
-#define PWMB 14
-#define BIN1 12
-#define BIN2 13
-#define STBY 33
+#define PWMA 27
+#define AIN1 12
+#define AIN2 13
+#define PWMB 33
+#define BIN1 26
+#define BIN2 25
+#define STBY 32 // Assuming 32 since STBY was moved to 33
 
 #define PWM_FREQ 20000
 #define PWM_RES 10

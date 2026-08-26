@@ -12,7 +12,7 @@ TelemetryClient::~TelemetryClient() {
 }
 
 void TelemetryClient::startListening(quint16 port) {
-    if (m_socket->bind(QHostAddress::Any, port)) {
+    if (m_socket->bind(QHostAddress::Any, port, QUdpSocket::ShareAddress)) {
         connect(m_socket, &QUdpSocket::readyRead, this, &TelemetryClient::readPendingDatagrams);
         qDebug() << "TelemetryClient listening on port:" << port;
     } else {
