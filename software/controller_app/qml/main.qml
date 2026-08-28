@@ -28,6 +28,7 @@ Window {
     property int previousSpeedMode: 1
     
     property bool enable3dKinematics: false
+    property bool reverseTofSensors: false
 
     onKeyThrottleChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
     onKeySteeringChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
@@ -97,6 +98,8 @@ Window {
             else if (event.key === Qt.Key_V) apfSwitch.checked = !apfSwitch.checked;
             else if (event.key === Qt.Key_R) radarSwitch.checked = !radarSwitch.checked;
             else if (event.key === Qt.Key_O) alertSwitch.checked = !alertSwitch.checked;
+            else if (event.key === Qt.Key_F) reverseTofSwitch.checked = !reverseTofSwitch.checked;
+            else if (event.key === Qt.Key_K) enable3dKinematics = !enable3dKinematics;
             else if (event.key === Qt.Key_1) speedModeCombo.currentIndex = 0;
             else if (event.key === Qt.Key_2) speedModeCombo.currentIndex = 1;
             else if (event.key === Qt.Key_3) speedModeCombo.currentIndex = 2;
@@ -188,7 +191,7 @@ Window {
                         anchors.fill: parent
                         pitch: typeof telemetryClient !== "undefined" ? telemetryClient.pitch : 0.0
                         roll: typeof telemetryClient !== "undefined" ? telemetryClient.roll : 0.0
-                        yaw: typeof telemetryClient !== "undefined" ? telemetryClient.yaw : 0.0
+                        yaw: typeof telemetryClient !== "undefined" ? telemetryClient.headingCompassDeg : 0.0
                     }
                 }
 
@@ -367,6 +370,12 @@ Window {
                                 id: alertSwitch
                                 text: "Show Obstacle Alerts [O]" 
                                 checked: true
+                            }
+                            Switch { 
+                                id: reverseTofSwitch
+                                text: "Reverse ToF (Front/Back) [F]" 
+                                checked: reverseTofSensors
+                                onCheckedChanged: reverseTofSensors = checked
                             }
                             
                             RowLayout {
