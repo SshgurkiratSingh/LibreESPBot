@@ -237,9 +237,15 @@ Window {
                 color: "#1e1e1e"
                 radius: 10
 
-                ColumnLayout {
+                ScrollView {
                     anchors.fill: parent
-                    anchors.margins: 20
+                    anchors.margins: 15
+                    clip: true
+                    contentWidth: availableWidth
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 15
 
                     Text {
                         text: "ACTUATION"
@@ -294,8 +300,9 @@ Window {
                             }
                         }
                     }
-                }
-            }
+                    }
+                } // End ScrollView
+            } // End Rectangle
         }
     }
 
