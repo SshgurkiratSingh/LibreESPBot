@@ -248,9 +248,16 @@ Window {
                     radius: 22
                     
                     // Logic for visibility:
-                    property bool hasObstacle: typeof telemetryClient !== "undefined" && 
-                        ((telemetryClient.tof1DistMm > 30 && telemetryClient.tof1DistMm < 400) || 
-                         (telemetryClient.tof2DistMm > 30 && telemetryClient.tof2DistMm < 400))
+                    property int tof1: typeof telemetryClient !== "undefined" ? telemetryClient.tof1DistMm : 8191
+                    property int tof2: typeof telemetryClient !== "undefined" ? telemetryClient.tof2DistMm : 8191
+                    
+                    property bool hasObstacle: (tof1 > 30 && tof1 < 100) || (tof2 > 30 && tof2 < 100)
+                    
+                    property int closestDist: {
+                        let t1 = (tof1 > 30 && tof1 < 8000) ? tof1 : 9999;
+                        let t2 = (tof2 > 30 && tof2 < 8000) ? tof2 : 9999;
+                        return Math.min(t1, t2);
+                    }
                     
                     // Only show alert if moving forward or backward to prevent annoyance while stationary
                     property bool isMoving: keyThrottle !== 0 || (typeof mainJoystick !== "undefined" && Math.abs(mainJoystick.axisY) > 100)
@@ -259,10 +266,10 @@ Window {
                     
                     Text {
                         anchors.centerIn: parent
-                        text: "OBSTACLE PROXIMITY ALERT"
+                        text: "OBSTACLE PROXIMITY ALERT (" + obstacleAlertBanner.closestDist + " mm)"
                         color: "white"
                         font.bold: true
-                        font.pixelSize: 16
+                        font.pixelSize: 14
                     }
                     
                     Timer {
