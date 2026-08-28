@@ -57,16 +57,22 @@ Window {
             // Clean up old points (fade out after 5 seconds) to avoid memory leaks
             var now = Date.now();
             var newPoints = [];
-            for (var key in radarDataMap) {
-                if (radarDataMap.hasOwnProperty(key)) {
-                    var pt = radarDataMap[key];
-                    if (pt && now - pt.ts > 5000) {
-                        delete radarDataMap[key];
-                    } else if (pt) {
-                        newPoints.push(pt);
-                    }
+            var tempMap = radarDataMap; // Work with reference
+            
+            for (var key in tempMap) {
+                if (!tempMap.hasOwnProperty(key)) continue;
+                
+                var pt = tempMap[key];
+                if (!pt || pt === undefined) continue; // Safety check
+                
+                if (now - pt.ts > 5000) {
+                    delete tempMap[key];
+                } else {
+                    newPoints.push(pt);
                 }
             }
+            
+            radarDataMap = tempMap; // Reassign to maintain state safely
             currentRadarPoints = newPoints;
         }
     }
