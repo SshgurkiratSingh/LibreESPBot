@@ -25,6 +25,7 @@ Window {
     // Keyboard Input State
     property real keyThrottle: 0.0
     property real keySteering: 0.0
+    property int previousSpeedMode: 1
     
     property bool enable3dKinematics: false
 
@@ -88,12 +89,19 @@ Window {
             else if (event.key === Qt.Key_S || event.key === Qt.Key_Down) keyThrottle = -1.0;
             else if (event.key === Qt.Key_A || event.key === Qt.Key_Left) keySteering = -1.0;
             else if (event.key === Qt.Key_D || event.key === Qt.Key_Right) keySteering = 1.0;
+            else if (event.key === Qt.Key_Space) {
+                previousSpeedMode = speedModeCombo.currentIndex;
+                speedModeCombo.currentIndex = 2; // Sport
+            }
         }
 
         Keys.onReleased: (event) => {
             if (event.isAutoRepeat) return;
             if (event.key === Qt.Key_W || event.key === Qt.Key_Up || event.key === Qt.Key_S || event.key === Qt.Key_Down) keyThrottle = 0;
             else if (event.key === Qt.Key_A || event.key === Qt.Key_Left || event.key === Qt.Key_D || event.key === Qt.Key_Right) keySteering = 0;
+            else if (event.key === Qt.Key_Space) {
+                speedModeCombo.currentIndex = previousSpeedMode;
+            }
         }
 
         GridLayout {
