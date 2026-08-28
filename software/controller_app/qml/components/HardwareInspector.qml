@@ -106,14 +106,14 @@ Rectangle {
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
 
-            Text { text: "ToF L (Front)"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
+            Text { text: reverseTofSensors ? "ToF L (Back)" : "ToF L (Front)"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
                 text: typeof telemetryClient !== "undefined" ? (telemetryClient.tof1DistMm === 0 ? "OOR" : telemetryClient.tof1DistMm + " mm") : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
 
-            Text { text: "ToF R (Front)"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
+            Text { text: reverseTofSensors ? "ToF R (Back)" : "ToF R (Front)"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
                 text: typeof telemetryClient !== "undefined" ? (telemetryClient.tof2DistMm === 0 ? "OOR" : telemetryClient.tof2DistMm + " mm") : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
