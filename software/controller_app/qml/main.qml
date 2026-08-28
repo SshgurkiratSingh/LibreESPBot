@@ -91,14 +91,16 @@ Window {
             else if (event.key === Qt.Key_D || event.key === Qt.Key_Right) keySteering = 1.0;
             else if (event.key === Qt.Key_Space) {
                 previousSpeedMode = speedModeCombo.currentIndex;
-                speedModeCombo.currentIndex = 2; // Sport
+                speedModeCombo.currentIndex = 3; // Sport
             }
             else if (event.key === Qt.Key_B) aebSwitch.checked = !aebSwitch.checked;
             else if (event.key === Qt.Key_V) apfSwitch.checked = !apfSwitch.checked;
             else if (event.key === Qt.Key_R) radarSwitch.checked = !radarSwitch.checked;
+            else if (event.key === Qt.Key_O) alertSwitch.checked = !alertSwitch.checked;
             else if (event.key === Qt.Key_1) speedModeCombo.currentIndex = 0;
             else if (event.key === Qt.Key_2) speedModeCombo.currentIndex = 1;
             else if (event.key === Qt.Key_3) speedModeCombo.currentIndex = 2;
+            else if (event.key === Qt.Key_4) speedModeCombo.currentIndex = 3;
             else if (event.key === Qt.Key_H || event.key === Qt.Key_L) {
                 headlightCombo.currentIndex = (headlightCombo.currentIndex + 1) % headlightCombo.model.length;
             }
@@ -234,6 +236,46 @@ Window {
                     }
                 }
 
+                // Obstacle Alert Overlay
+                Rectangle {
+                    id: obstacleAlertBanner
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: 20
+                    width: mainWindow.isMobilePortrait ? parent.width * 0.8 : 400
+                    height: 50
+                    color: "#CCFF0000" // Semi-transparent red
+                    radius: 10
+                    
+                    // Logic for visibility:
+                    property bool hasObstacle: typeof telemetryClient !== "undefined" && 
+                        ((telemetryClient.tof1DistMm > 30 && telemetryClient.tof1DistMm < 400) || 
+                         (telemetryClient.tof2DistMm > 30 && telemetryClient.tof2DistMm < 400))
+                    
+                    // Only show alert if moving forward or backward to prevent annoyance while stationary
+                    property bool isMoving: keyThrottle !== 0 || (typeof mainJoystick !== "undefined" && Math.abs(mainJoystick.axisY) > 100)
+                    
+                    visible: alertSwitch.checked && hasObstacle && isMoving
+                    
+                    Text {
+                        anchors.centerIn: parent
+                        text: "OBSTACLE PROXIMITY ALERT"
+                        color: "white"
+                        font.bold: true
+                        font.pixelSize: 18
+                        font.letterSpacing: 2
+                    }
+                    
+                    Timer {
+                        id: alertBlinker
+                        interval: 200
+                        repeat: true
+                        running: obstacleAlertBanner.visible
+                        onTriggered: obstacleAlertBanner.opacity = obstacleAlertBanner.opacity === 1.0 ? 0.3 : 1.0
+                    }
+                    onVisibleChanged: if (!visible) opacity = 1.0
+                }
+
                 // Small Artificial Horizon overlay in the top-right corner
                 ArtificialHorizon {
                     anchors.top: parent.top
@@ -315,15 +357,20 @@ Window {
                                 text: "Radar Sweep [R]" 
                                 onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setRadarSweep(checked)
                             }
+                            Switch { 
+                                id: alertSwitch
+                                text: "Show Obstacle Alerts [O]" 
+                                checked: true
+                            }
                             
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "Speed Mode [1-3]:"; color: "white" }
+                                Text { text: "Speed Mode [1-4]:"; color: "white" }
                                 ComboBox {
                                     id: speedModeCombo
                                     Layout.fillWidth: true
-                                    model: ["Precision (30%)", "Normal (70%)", "Sport (100%)"]
-                                    currentIndex: 1 // Default to Normal
+                                    model: ["Crawl (15%)", "Precision (30%)", "Normal (70%)", "Sport (100%)"]
+                                    currentIndex: 2 // Default to Normal (index 2 now)
                                     onCurrentIndexChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setSpeedMode(currentIndex)
                                 }
                             }
