@@ -41,6 +41,17 @@ Item {
         }
     }
     
+    // Inverse Mask to hide corners (perfect circular clipping without OpacityMask)
+    Rectangle {
+        anchors.centerIn: parent
+        width: parent.width + 1000 // Huge to cover all overflow
+        height: parent.height + 1000
+        radius: width / 2
+        color: "transparent"
+        border.color: "black" // Matches the main window background
+        border.width: 500
+    }
+    
     // Crosshair reference
     Rectangle {
         anchors.centerIn: parent
@@ -61,7 +72,7 @@ Item {
         anchors.fill: parent
         color: "transparent"
         border.color: "white"
-        border.width: 3
+        border.width: 2
         radius: width / 2
     }
 }
