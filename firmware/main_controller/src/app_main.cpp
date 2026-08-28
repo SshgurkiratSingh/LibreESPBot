@@ -221,9 +221,10 @@ void loop()
             autoEngine.setAPF(lastCommand.enableApfAvoidance);
 
             float speedMult = 1.0f;
-            if (lastCommand.speedModeLimit == 0) speedMult = 0.3f;
-            else if (lastCommand.speedModeLimit == 1) speedMult = 0.7f;
-            else speedMult = 1.0f;
+            if (lastCommand.speedModeLimit == 0) speedMult = 0.15f;      // Crawl
+            else if (lastCommand.speedModeLimit == 1) speedMult = 0.3f; // Precision
+            else if (lastCommand.speedModeLimit == 2) speedMult = 0.7f; // Normal
+            else speedMult = 1.0f;                                      // Sport
 
             baseLeftPwm = (lastCommand.throttleAxis + lastCommand.steeringAxis) * speedMult;
             baseRightPwm = (lastCommand.throttleAxis - lastCommand.steeringAxis) * speedMult;
