@@ -93,6 +93,15 @@ Window {
                 previousSpeedMode = speedModeCombo.currentIndex;
                 speedModeCombo.currentIndex = 2; // Sport
             }
+            else if (event.key === Qt.Key_B) aebSwitch.checked = !aebSwitch.checked;
+            else if (event.key === Qt.Key_V) apfSwitch.checked = !apfSwitch.checked;
+            else if (event.key === Qt.Key_R) radarSwitch.checked = !radarSwitch.checked;
+            else if (event.key === Qt.Key_1) speedModeCombo.currentIndex = 0;
+            else if (event.key === Qt.Key_2) speedModeCombo.currentIndex = 1;
+            else if (event.key === Qt.Key_3) speedModeCombo.currentIndex = 2;
+            else if (event.key === Qt.Key_H || event.key === Qt.Key_L) {
+                headlightCombo.currentIndex = (headlightCombo.currentIndex + 1) % headlightCombo.model.length;
+            }
         }
 
         Keys.onReleased: (event) => {
@@ -292,21 +301,24 @@ Window {
                             
                             // Automations Drawer Toggles
                             Switch { 
-                                text: "Auto Emergency Brake (AEB)"
+                                id: aebSwitch
+                                text: "Auto Emergency Brake [B]"
                                 onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setAutoBrake(checked)
                             }
                             Switch { 
-                                text: "APF Collision Avoidance" 
+                                id: apfSwitch
+                                text: "APF Collision Avoidance [V]" 
                                 onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setApfAvoidance(checked)
                             }
                             Switch { 
-                                text: "Radar Sweep" 
+                                id: radarSwitch
+                                text: "Radar Sweep [R]" 
                                 onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setRadarSweep(checked)
                             }
                             
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "Speed Mode:"; color: "white" }
+                                Text { text: "Speed Mode [1-3]:"; color: "white" }
                                 ComboBox {
                                     id: speedModeCombo
                                     Layout.fillWidth: true
@@ -318,7 +330,7 @@ Window {
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "Headlights:"; color: "white" }
+                                Text { text: "Headlights [H/L]:"; color: "white" }
                                 ComboBox {
                                     id: headlightCombo
                                     Layout.fillWidth: true
