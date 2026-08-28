@@ -6,13 +6,11 @@
 #include "MpuDriver.hpp"
 #include "CompassDriver.hpp"
 #include "DualVL53L0X.hpp"
-#include <ESP32Servo.h>
 
 TB6612_Driver motors;
 MpuDriver imu;
 CompassDriver compass;
 DualVL53L0X tofSensors;
-Servo panServo;
 
 #define SERVO_PIN 18 
 
@@ -36,11 +34,10 @@ void setup() {
     // Init Actuators
     motors.init();
     
-    // Setup Servo
-    ESP32PWM::allocateTimer(2);
-    panServo.setPeriodHertz(50);
-    panServo.attach(SERVO_PIN, 500, 2400);
-    Serial.println("Servo attached to Pin 18. Beginning sweep test...");
+    // Setup Servo (Native LEDC API)
+    ledcSetup(5, 50, 16);
+    ledcAttachPin(SERVO_PIN, 5);
+    Serial.println("Servo attached to Pin 18 (Channel 5). Beginning sweep test...");
 }
 
 void loop() {
@@ -63,7 +60,9 @@ void loop() {
         servoAngle += servoDir * 15;
         if (servoAngle >= 180) { servoAngle = 180; servoDir = -1; }
         if (servoAngle <= 0) { servoAngle = 0; servoDir = 1; }
-        panServo.write(servoAngle);
+        
+        uint32_t duty = 1638 + ((7864 - 1638) * servoAngle) / 180;
+        ledcWrite(5, duty);
     }
     
     // 2. Cycle Motors periodically (every 2 seconds)
