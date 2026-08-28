@@ -123,13 +123,15 @@ Window {
             
             columns: mainWindow.isMobilePortrait ? 1 : 3
 
-            // Left Sidebar: Radar & Hardware Inspector
+            // Left Sidebar: Sensor & Sweep Data
             Rectangle {
                 Layout.fillHeight: !mainWindow.isMobilePortrait
                 Layout.preferredHeight: mainWindow.isMobilePortrait ? 400 : -1
                 Layout.preferredWidth: mainWindow.isMobilePortrait ? parent.width : mainWindow.width * 0.25
-                color: "#1e1e1e"
-                radius: 10
+                color: "#151515"
+                border.color: "#2a2a2a"
+                border.width: 1
+                radius: 12
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -138,7 +140,8 @@ Window {
                     Text {
                         text: "RADAR SWEEP"
                         color: "#00E5FF" // Cyan
-                        font.pixelSize: 18
+                        font.pixelSize: 16
+                        font.letterSpacing: 2
                         font.bold: true
                     }
 
@@ -236,16 +239,18 @@ Window {
                     }
                 }
 
-                // Obstacle Alert Overlay
+                // Obstacle Alert Overlay (Sleek Pill at Bottom)
                 Rectangle {
                     id: obstacleAlertBanner
                     anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.top: parent.top
-                    anchors.topMargin: 20
-                    width: mainWindow.isMobilePortrait ? parent.width * 0.8 : 400
-                    height: 50
-                    color: "#CCFF0000" // Semi-transparent red
-                    radius: 10
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 40
+                    width: 300
+                    height: 44
+                    color: "#1a0000"
+                    border.color: "#FF1744"
+                    border.width: 1
+                    radius: 22
                     
                     // Logic for visibility:
                     property bool hasObstacle: typeof telemetryClient !== "undefined" && 
@@ -257,23 +262,36 @@ Window {
                     
                     visible: alertSwitch.checked && hasObstacle && isMoving
                     
-                    Text {
+                    RowLayout {
                         anchors.centerIn: parent
-                        text: "OBSTACLE PROXIMITY ALERT"
-                        color: "white"
-                        font.bold: true
-                        font.pixelSize: 18
-                        font.letterSpacing: 2
+                        spacing: 12
+                        
+                        Rectangle {
+                            width: 20; height: 20; radius: 10
+                            color: "#FF1744"
+                            Text {
+                                anchors.centerIn: parent
+                                text: "!"
+                                color: "white"
+                                font.bold: true
+                            }
+                        }
+                        
+                        Text {
+                            text: "COLLISION WARNING"
+                            color: "#FF1744"
+                            font.bold: true
+                            font.pixelSize: 14
+                            font.letterSpacing: 2
+                        }
                     }
                     
-                    Timer {
-                        id: alertBlinker
-                        interval: 200
-                        repeat: true
+                    SequentialAnimation on opacity {
                         running: obstacleAlertBanner.visible
-                        onTriggered: obstacleAlertBanner.opacity = obstacleAlertBanner.opacity === 1.0 ? 0.3 : 1.0
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.2; duration: 400; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1.0; duration: 400; easing.type: Easing.InOutSine }
                     }
-                    onVisibleChanged: if (!visible) opacity = 1.0
                 }
 
                 // Small Artificial Horizon overlay in the top-right corner
@@ -302,8 +320,10 @@ Window {
                 Layout.fillHeight: !mainWindow.isMobilePortrait
                 Layout.preferredHeight: mainWindow.isMobilePortrait ? 450 : -1
                 Layout.preferredWidth: mainWindow.isMobilePortrait ? parent.width : mainWindow.width * 0.25
-                color: "#1e1e1e"
-                radius: 10
+                color: "#151515"
+                border.color: "#2a2a2a"
+                border.width: 1
+                radius: 12
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -313,7 +333,8 @@ Window {
                     Text {
                         text: "ACTUATION"
                         color: "#00E676" // Green
-                        font.pixelSize: 18
+                        font.pixelSize: 16
+                        font.letterSpacing: 2
                         font.bold: true
                     }
 
