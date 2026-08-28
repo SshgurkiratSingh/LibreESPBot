@@ -9,7 +9,7 @@ public:
     AutomationEngine(TB6612_Driver* driver, DualVL53L0X* radar);
     void setAEB(bool enable);
     void setAPF(bool enable);
-    void update();
+    void update(int16_t &leftPwm, int16_t &rightPwm);
 
 private:
     TB6612_Driver* motorDriver;

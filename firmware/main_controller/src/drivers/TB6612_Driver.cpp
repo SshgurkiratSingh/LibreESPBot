@@ -45,6 +45,7 @@ int16_t TB6612_Driver::applyDeadband(int16_t u) {
 }
 
 void TB6612_Driver::setMotorLeft(int16_t speed) {
+    currentLeft = speed;
     speed = applyDeadband(speed);
     
     if (speed > 0) {
@@ -63,6 +64,7 @@ void TB6612_Driver::setMotorLeft(int16_t speed) {
 }
 
 void TB6612_Driver::setMotorRight(int16_t speed) {
+    currentRight = speed;
     speed = applyDeadband(speed);
     
     if (speed > 0) {
