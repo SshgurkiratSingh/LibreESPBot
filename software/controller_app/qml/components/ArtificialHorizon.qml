@@ -48,59 +48,31 @@ Item {
         height: parent.height + 1000
         radius: width / 2
         color: "transparent"
-        border.color: "#121212" // Matches the main window background (#121212)
+        border.color: "black" // Matches the main window background
         border.width: 500
     }
     
-    // Outer Bezel Frame
-    Rectangle {
-        anchors.fill: parent
-        radius: width / 2
-        color: "transparent"
-        border.color: "#444444"
-        border.width: 3
-    }
-    
-    // Glass reflection overlay for 3D effect
-    Rectangle {
-        anchors.fill: parent
-        radius: width / 2
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(1.0, 1.0, 1.0, 0.20) }
-            GradientStop { position: 0.35; color: Qt.rgba(1.0, 1.0, 1.0, 0.0) }
-            GradientStop { position: 1.0; color: Qt.rgba(0.0, 0.0, 0.0, 0.40) }
-        }
-    }
-    
-    // Crosshair reference (Center Dot)
+    // Crosshair reference
     Rectangle {
         anchors.centerIn: parent
-        width: 14
-        height: 14
-        radius: 7
+        width: 10
+        height: 10
+        radius: 5
+        color: "yellow"
+    }
+    Rectangle {
+        anchors.centerIn: parent
+        width: 150
+        height: 2
+        color: "yellow"
+    }
+    
+    // Border
+    Rectangle {
+        anchors.fill: parent
         color: "transparent"
-        border.color: "#00E676"
+        border.color: "white"
         border.width: 2
+        radius: width / 2
     }
-    
-    // Left Wing
-    Rectangle {
-        anchors.right: parent.horizontalCenter
-        anchors.rightMargin: 15
-        anchors.verticalCenter: parent.verticalCenter
-        width: parent.width * 0.15
-        height: 3
-        color: "#00E676"
-    }
-    
-    // Right Wing
-    Rectangle {
-        anchors.left: parent.horizontalCenter
-        anchors.leftMargin: 15
-        anchors.verticalCenter: parent.verticalCenter
-        width: parent.width * 0.15
-        height: 3
-        color: "#00E676"
-    }
-
 }
