@@ -166,10 +166,13 @@ uint16_t calculateCrc16(const uint8_t *data, size_t length) {
 // ============================================================
 void loop() {
     // 1. Check for incoming UDP Commands
-    int packetSize = udp.parsePacket();
-    if (packetSize == sizeof(VehicleCommandPacket)) {
+    bool newCommandReceived = false;
+    while (udp.parsePacket() == sizeof(VehicleCommandPacket)) {
         udp.read((unsigned char*)&lastCommand, sizeof(VehicleCommandPacket));
-        
+        newCommandReceived = true;
+    }
+    
+    if (newCommandReceived) {
         size_t dataLen = sizeof(VehicleCommandPacket) - sizeof(uint16_t);
         uint16_t calcCrc = calculateCrc16((const uint8_t*)&lastCommand, dataLen);
         
