@@ -330,15 +330,15 @@ void loop() {
         
         if (leftBlinker) {
             for (int i = 0; i < NUM_LEDS; i++) ledsLeft[i] = CRGB::Black;
-            if (blinkPhase >= 1 && NUM_LEDS > 0) ledsLeft[0] = CRGB(255, 120, 0);
-            if (blinkPhase >= 2 && NUM_LEDS > 1) ledsLeft[1] = CRGB(255, 120, 0);
-            if (blinkPhase >= 3 && NUM_LEDS > 2) ledsLeft[2] = CRGB(255, 120, 0);
+            if (blinkPhase >= 1 && NUM_LEDS > 0) ledsLeft[NUM_LEDS - 1] = CRGB(255, 120, 0);
+            if (blinkPhase >= 2 && NUM_LEDS > 1) ledsLeft[NUM_LEDS - 2] = CRGB(255, 120, 0);
+            if (blinkPhase >= 3 && NUM_LEDS > 2) ledsLeft[NUM_LEDS - 3] = CRGB(255, 120, 0);
         }
         if (rightBlinker) {
             for (int i = 0; i < NUM_LEDS; i++) ledsRight[i] = CRGB::Black;
-            if (blinkPhase >= 1 && NUM_LEDS > 0) ledsRight[0] = CRGB(255, 120, 0);
-            if (blinkPhase >= 2 && NUM_LEDS > 1) ledsRight[1] = CRGB(255, 120, 0);
-            if (blinkPhase >= 3 && NUM_LEDS > 2) ledsRight[2] = CRGB(255, 120, 0);
+            if (blinkPhase >= 1 && NUM_LEDS > 0) ledsRight[NUM_LEDS - 1] = CRGB(255, 120, 0);
+            if (blinkPhase >= 2 && NUM_LEDS > 1) ledsRight[NUM_LEDS - 2] = CRGB(255, 120, 0);
+            if (blinkPhase >= 3 && NUM_LEDS > 2) ledsRight[NUM_LEDS - 3] = CRGB(255, 120, 0);
         }
         FastLED.show();
         
