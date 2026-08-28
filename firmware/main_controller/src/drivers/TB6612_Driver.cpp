@@ -13,71 +13,88 @@
 #define PWM_FREQ 20000
 #define PWM_RES 10
 #define PWM_DB 150 // Deadband stiction threshold
+#define PWM_CH_LEFT 6
+#define PWM_CH_RIGHT 7
 
 TB6612_Driver::TB6612_Driver() {}
 
-void TB6612_Driver::init() {
+void TB6612_Driver::init()
+{
     pinMode(AIN1, OUTPUT);
     pinMode(AIN2, OUTPUT);
     pinMode(BIN1, OUTPUT);
     pinMode(BIN2, OUTPUT);
     pinMode(STBY, OUTPUT);
 
-    // Configure ESP32 LEDC channels at 20 kHz with 10-bit resolution
-    ledcSetup(0, PWM_FREQ, PWM_RES);
-    ledcAttachPin(PWMA, 0);
+    // Keep motor PWM on dedicated channels so it never collides with ESP32Servo.
+    ledcSetup(PWM_CH_LEFT, PWM_FREQ, PWM_RES);
+    ledcAttachPin(PWMA, PWM_CH_LEFT);
 
-    ledcSetup(1, PWM_FREQ, PWM_RES);
-    ledcAttachPin(PWMB, 1);
+    ledcSetup(PWM_CH_RIGHT, PWM_FREQ, PWM_RES);
+    ledcAttachPin(PWMB, PWM_CH_RIGHT);
 
     digitalWrite(STBY, HIGH);
 }
 
-int16_t TB6612_Driver::applyDeadband(int16_t u) {
-    if (u == 0) return 0;
-    
+int16_t TB6612_Driver::applyDeadband(int16_t u)
+{
+    if (u == 0)
+        return 0;
+
     float sign = (u > 0) ? 1.0f : -1.0f;
     float abs_u = std::abs((float)u);
-    
+
     // PWM_applied = sgn(u) * [PWM_db + (1 - PWM_db/1023) * |u|]
     float pwm_applied = sign * (PWM_DB + (1.0f - (float)PWM_DB / 1023.0f) * abs_u);
     return (int16_t)pwm_applied;
 }
 
-void TB6612_Driver::setMotorLeft(int16_t speed) {
+void TB6612_Driver::setMotorLeft(int16_t speed)
+{
     currentLeft = speed;
     speed = applyDeadband(speed);
-    
-    if (speed > 0) {
+
+    if (speed > 0)
+    {
         digitalWrite(AIN1, HIGH);
         digitalWrite(AIN2, LOW);
-        ledcWrite(0, speed);
-    } else if (speed < 0) {
+        ledcWrite(PWM_CH_LEFT, speed);
+    }
+    else if (speed < 0)
+    {
         digitalWrite(AIN1, LOW);
         digitalWrite(AIN2, HIGH);
-        ledcWrite(0, -speed);
-    } else {
+        ledcWrite(PWM_CH_LEFT, -speed);
+    }
+    else
+    {
         digitalWrite(AIN1, HIGH);
         digitalWrite(AIN2, HIGH); // Active short braking
-        ledcWrite(0, 0);
+        ledcWrite(PWM_CH_LEFT, 0);
     }
 }
 
-void TB6612_Driver::setMotorRight(int16_t speed) {
+void TB6612_Driver::setMotorRight(int16_t speed)
+{
     currentRight = speed;
     speed = applyDeadband(speed);
-    
-    if (speed > 0) {
+
+    if (speed > 0)
+    {
         digitalWrite(BIN1, HIGH);
         digitalWrite(BIN2, LOW);
-        ledcWrite(1, speed);
-    } else if (speed < 0) {
+        ledcWrite(PWM_CH_RIGHT, speed);
+    }
+    else if (speed < 0)
+    {
         digitalWrite(BIN1, LOW);
         digitalWrite(BIN2, HIGH);
-        ledcWrite(1, -speed);
-    } else {
+        ledcWrite(PWM_CH_RIGHT, -speed);
+    }
+    else
+    {
         digitalWrite(BIN1, HIGH);
         digitalWrite(BIN2, HIGH); // Active short braking
-        ledcWrite(1, 0);
+        ledcWrite(PWM_CH_RIGHT, 0);
     }
 }

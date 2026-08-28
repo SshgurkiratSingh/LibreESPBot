@@ -294,6 +294,18 @@ Window {
                     
                     RowLayout {
                         Layout.fillWidth: true
+                        Text { text: "Speed Mode:"; color: "white" }
+                        ComboBox {
+                            id: speedModeCombo
+                            Layout.fillWidth: true
+                            model: ["Precision (30%)", "Normal (70%)", "Sport (100%)"]
+                            currentIndex: 1 // Default to Normal
+                            onCurrentIndexChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setSpeedMode(currentIndex)
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
                         Text { text: "Headlights:"; color: "white" }
                         ComboBox {
                             id: headlightCombo

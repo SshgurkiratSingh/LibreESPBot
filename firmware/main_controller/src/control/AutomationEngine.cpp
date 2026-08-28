@@ -22,9 +22,9 @@ void AutomationEngine::update(int16_t &leftPwm, int16_t &rightPwm) {
     uint16_t leftDist = tofRadar->getLeftDistanceMm();
     uint16_t rightDist = tofRadar->getRightDistanceMm();
     
-    // Ensure we only use valid readings
-    if (leftDist == 0 || leftDist > 8000) leftDist = 8000;
-    if (rightDist == 0 || rightDist > 8000) rightDist = 8000;
+    // Ensure we only use valid readings (ignore crosstalk < 30mm)
+    if (leftDist < 30 || leftDist > 8000) leftDist = 8000;
+    if (rightDist < 30 || rightDist > 8000) rightDist = 8000;
 
     if (apfEnabled) {
         // Artificial Potential Field collision avoidance logic
