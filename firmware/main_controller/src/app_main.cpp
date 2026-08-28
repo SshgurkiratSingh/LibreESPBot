@@ -41,8 +41,8 @@ uint16_t remotePort = 0;
 VehicleTelemetryPacket telemetry;
 VehicleCommandPacket   lastCommand;
 
-int16_t lastLeftPwm  = 0; // Last commanded PWM for telemetry
-int16_t lastRightPwm = 0;
+int16_t baseLeftPwm  = 0; // Last commanded base PWM before APF/AEB
+int16_t baseRightPwm = 0;
 
 int servoAngle = 90;
 int servoDir = 1;
@@ -185,21 +185,20 @@ void loop() {
                           lastCommand.throttleAxis, lastCommand.steeringAxis,
                           lastCommand.enableAutoBrake, lastCommand.enableApfAvoidance);
 
-            // Apply command to Automation Engine & Motors
+            // Apply command to Automation Engine (Motors are NOT driven here anymore)
+            // They are driven safely inside autoEngine.update()
             autoEngine.setAEB(lastCommand.enableAutoBrake);
             autoEngine.setAPF(lastCommand.enableApfAvoidance);
 
-            // Directly drive motors if no AEB intervention (Basic implementation)
-            // Note: AutomationEngine::update() would normally override this
-            lastLeftPwm  = lastCommand.throttleAxis + lastCommand.steeringAxis;
-            lastRightPwm = lastCommand.throttleAxis - lastCommand.steeringAxis;
-            motors.setMotorLeft(lastLeftPwm);
-            motors.setMotorRight(lastRightPwm);
+            baseLeftPwm  = lastCommand.throttleAxis + lastCommand.steeringAxis;
+            baseRightPwm = lastCommand.throttleAxis - lastCommand.steeringAxis;
         }
     }
 
-    // 2. Automation Update
-    autoEngine.update();
+    // 2. Automation Update (Mixes APF steering & AEB braking)
+    int16_t currentLeft = baseLeftPwm;
+    int16_t currentRight = baseRightPwm;
+    autoEngine.update(currentLeft, currentRight);
 
     // Radar Sweep Update
     if (lastCommand.enableRadarSweep) {
@@ -259,8 +258,8 @@ void loop() {
         telemetry.tof1DistMm = tofSensors.getLeftDistanceMm();
         telemetry.tof2DistMm = tofSensors.getRightDistanceMm();
 
-        telemetry.motorLeftPwm = lastLeftPwm;
-        telemetry.motorRightPwm = lastRightPwm;
+        telemetry.motorLeftPwm = motors.getCurrentLeftPwm();
+        telemetry.motorRightPwm = motors.getCurrentRightPwm();
         
         // 1/3 Voltage Divider on Pin 34
         // ADC 0-4095 maps to 0-3.3V (default 11dB attenuation)
