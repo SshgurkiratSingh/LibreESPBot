@@ -25,8 +25,8 @@ private:
     
     // GPIO 25/26 conflict with the TB6612 motor pins (PWMA/AIN1), so use
     // free GPIOs 16/17 for the ToF reset lines instead.
-    static const uint8_t XSHUT_1 = 23;
-    static const uint8_t XSHUT_2 = 19;
+    static const uint8_t XSHUT_1 = 16;
+    static const uint8_t XSHUT_2 = 4;
     
     static const uint8_t VL53_ADDR_1 = 0x30;
     static const uint8_t VL53_ADDR_2 = 0x29;

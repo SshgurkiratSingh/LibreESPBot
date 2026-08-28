@@ -3,6 +3,7 @@ import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
+import QtQuick.Dialogs
 import "components"
 import "theme"
 
@@ -29,6 +30,43 @@ Window {
 
     onKeyThrottleChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
     onKeySteeringChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
+
+    property var radarDataMap: ({})
+    property var currentRadarPoints: []
+
+    Connections {
+        target: typeof telemetryClient !== "undefined" ? telemetryClient : null
+        function onTelemetryUpdated() {
+            if (!telemetryClient) return;
+            
+            var angle = telemetryClient.servoAngleDeg; // -90 to +90
+            var dist1 = telemetryClient.tof1DistMm;
+            var dist2 = telemetryClient.tof2DistMm;
+            
+            // Filter invalid readings (0 or > 2000)
+            if (dist1 > 0 && dist1 < 2000) {
+                var rad1 = angle * Math.PI / 180.0;
+                // Assuming 0 degrees is straight ahead (Y-axis)
+                radarDataMap["s1_" + angle] = { x: Math.sin(rad1) * dist1, y: Math.cos(rad1) * dist1, ts: Date.now() };
+            }
+            if (dist2 > 0 && dist2 < 2000) {
+                var rad2 = (angle + 180) * Math.PI / 180.0;
+                radarDataMap["s2_" + angle] = { x: Math.sin(rad2) * dist2, y: Math.cos(rad2) * dist2, ts: Date.now() };
+            }
+            
+            // Clean up old points (fade out after 5 seconds) to avoid memory leaks
+            var now = Date.now();
+            var newPoints = [];
+            for (var key in radarDataMap) {
+                if (now - radarDataMap[key].ts > 5000) {
+                    delete radarDataMap[key];
+                } else {
+                    newPoints.push(radarDataMap[key]);
+                }
+            }
+            currentRadarPoints = newPoints;
+        }
+    }
 
     Item {
         id: rootItem
@@ -80,14 +118,20 @@ Window {
                         id: radarCanvas
                         Layout.fillWidth: true
                         Layout.preferredHeight: width
-                        // points: radarCloud.points // Bind to backend
+                        points: currentRadarPoints
                     }
                     
                     Item { Layout.fillHeight: true } // spacer
 
-                    HardwareInspector {
-                        id: hwInspector
+                    ScrollView {
                         Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        
+                        HardwareInspector {
+                            id: hwInspector
+                            width: parent.width
+                        }
                     }
                 }
             }
@@ -148,7 +192,7 @@ Window {
                         }
                         
                         Text {
-                            property real hdg: typeof telemetryClient !== "undefined" ? telemetryClient.yaw : 0.0
+                            property real hdg: typeof telemetryClient !== "undefined" ? telemetryClient.headingCompassDeg : 0.0
                             // Normalize to 0-360 for compass reading
                             property real compassHdg: (hdg % 360 + 360) % 360
                             
@@ -232,7 +276,44 @@ Window {
                         text: "Radar Sweep" 
                         onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setRadarSweep(checked)
                     }
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Headlights:"; color: "white" }
+                        ComboBox {
+                            id: headlightCombo
+                            Layout.fillWidth: true
+                            model: ["Off", "On (White)", "Police Strobe", "Custom...", "Rainbow", "Cylon Scanner"]
+                            onCurrentIndexChanged: {
+                                if (typeof commandEmitter !== "undefined") {
+                                    commandEmitter.setHeadlightMode(currentIndex)
+                                }
+                                if (currentIndex === 3) {
+                                    customColorDialog.open()
+                                }
+                            }
+                        }
+                    }
                 }
+            }
+        }
+    }
+
+    ColorDialog {
+        id: customColorDialog
+        title: "Choose Custom LED Color"
+        onAccepted: {
+            if (typeof commandEmitter !== "undefined") {
+                commandEmitter.setCustomLedColor(
+                    Math.round(selectedColor.r * 255),
+                    Math.round(selectedColor.g * 255),
+                    Math.round(selectedColor.b * 255)
+                )
+            }
+        }
+        onRejected: {
+            if (headlightCombo.currentIndex === 3) {
+                headlightCombo.currentIndex = 0
             }
         }
     }

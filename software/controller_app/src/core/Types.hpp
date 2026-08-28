@@ -29,6 +29,7 @@ struct VehicleTelemetryPacket {
     int16_t  motorLeftPwm;    // -1023 to +1023
     int16_t  motorRightPwm;   // -1023 to +1023
     float    batteryVoltage;  // Scaled voltage (e.g. 11.1V - 12.6V)
+    float    imuTempC;        // MPU-6050 Temperature in Celsius
 
     // Status Flags (Bit 0: Obstacle, Bit 1: Braking, Bit 2: Radar Active, Bit 3: FailSafe)
     uint16_t statusFlags;
@@ -47,6 +48,10 @@ struct VehicleCommandPacket {
     uint8_t  enableApfAvoidance;
     uint8_t  enableRadarSweep;
     uint8_t  speedModeLimit;  // 0: Precision (30%), 1: Normal (70%), 2: Sport (100%)
+    uint8_t  headlightMode;   // 0: Off, 1: On (White), 2: Police Strobe, 3: Custom
+    uint8_t  customLedR;
+    uint8_t  customLedG;
+    uint8_t  customLedB;
     
     uint16_t crc16;
 };

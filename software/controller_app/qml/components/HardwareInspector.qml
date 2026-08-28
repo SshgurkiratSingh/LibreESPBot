@@ -70,6 +70,13 @@ Rectangle {
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
+
+            Text { text: "IMU Temp"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
+            Text { 
+                text: typeof telemetryClient !== "undefined" ? telemetryClient.imuTempC.toFixed(1) + " °C" : "---"
+                color: telemetryClient.imuTempC > 60.0 ? "#FF1744" : "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
+                horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
+            }
             
             Text { text: "Pitch"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
@@ -101,14 +108,14 @@ Rectangle {
 
             Text { text: "ToF L (Front)"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? telemetryClient.tof1DistMm + " mm" : "---"
+                text: typeof telemetryClient !== "undefined" ? (telemetryClient.tof1DistMm === 0 ? "OOR" : telemetryClient.tof1DistMm + " mm") : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
 
             Text { text: "ToF R (Front)"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? telemetryClient.tof2DistMm + " mm" : "---"
+                text: typeof telemetryClient !== "undefined" ? (telemetryClient.tof2DistMm === 0 ? "OOR" : telemetryClient.tof2DistMm + " mm") : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }

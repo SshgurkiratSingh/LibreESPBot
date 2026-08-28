@@ -45,16 +45,21 @@ int16_t TB6612_Driver::applyDeadband(int16_t u) {
 }
 
 void TB6612_Driver::setMotorLeft(int16_t speed) {
-    speed = applyDeadband(speed);
+    // Slew rate limiting to prevent brownout
+    if (speed > currentLeft + MAX_SLEW_STEP) currentLeft += MAX_SLEW_STEP;
+    else if (speed < currentLeft - MAX_SLEW_STEP) currentLeft -= MAX_SLEW_STEP;
+    else currentLeft = speed;
     
-    if (speed > 0) {
+    int16_t speed_out = applyDeadband(currentLeft);
+    
+    if (speed_out > 0) {
         digitalWrite(AIN1, HIGH);
         digitalWrite(AIN2, LOW);
-        ledcWrite(0, speed);
-    } else if (speed < 0) {
+        ledcWrite(0, speed_out);
+    } else if (speed_out < 0) {
         digitalWrite(AIN1, LOW);
         digitalWrite(AIN2, HIGH);
-        ledcWrite(0, -speed);
+        ledcWrite(0, -speed_out);
     } else {
         digitalWrite(AIN1, HIGH);
         digitalWrite(AIN2, HIGH); // Active short braking
@@ -63,16 +68,21 @@ void TB6612_Driver::setMotorLeft(int16_t speed) {
 }
 
 void TB6612_Driver::setMotorRight(int16_t speed) {
-    speed = applyDeadband(speed);
+    // Slew rate limiting to prevent brownout
+    if (speed > currentRight + MAX_SLEW_STEP) currentRight += MAX_SLEW_STEP;
+    else if (speed < currentRight - MAX_SLEW_STEP) currentRight -= MAX_SLEW_STEP;
+    else currentRight = speed;
     
-    if (speed > 0) {
+    int16_t speed_out = applyDeadband(currentRight);
+    
+    if (speed_out > 0) {
         digitalWrite(BIN1, HIGH);
         digitalWrite(BIN2, LOW);
-        ledcWrite(1, speed);
-    } else if (speed < 0) {
+        ledcWrite(1, speed_out);
+    } else if (speed_out < 0) {
         digitalWrite(BIN1, LOW);
         digitalWrite(BIN2, HIGH);
-        ledcWrite(1, -speed);
+        ledcWrite(1, -speed_out);
     } else {
         digitalWrite(BIN1, HIGH);
         digitalWrite(BIN2, HIGH); // Active short braking
