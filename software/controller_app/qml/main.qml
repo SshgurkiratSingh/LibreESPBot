@@ -58,10 +58,13 @@ Window {
             var now = Date.now();
             var newPoints = [];
             for (var key in radarDataMap) {
-                if (now - radarDataMap[key].ts > 5000) {
-                    delete radarDataMap[key];
-                } else {
-                    newPoints.push(radarDataMap[key]);
+                if (radarDataMap.hasOwnProperty(key)) {
+                    var pt = radarDataMap[key];
+                    if (pt && now - pt.ts > 5000) {
+                        delete radarDataMap[key];
+                    } else if (pt) {
+                        newPoints.push(pt);
+                    }
                 }
             }
             currentRadarPoints = newPoints;

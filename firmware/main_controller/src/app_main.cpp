@@ -94,7 +94,8 @@ void setup() {
 
     // Initialize Radar Servo
     panServo.setPeriodHertz(50);
-    panServo.attach(18, 500, 2400);
+    // Hardware conflict fix: GPIO 18 is used by ToF XSHUT_B. Move Servo to GPIO 5.
+    panServo.attach(5, 500, 2400);
     panServo.write(servoAngle);
 
     // Initialize Addressable LEDs

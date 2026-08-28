@@ -24,11 +24,12 @@ void TB6612_Driver::init() {
     pinMode(STBY, OUTPUT);
 
     // Configure ESP32 LEDC channels at 20 kHz with 10-bit resolution
-    ledcSetup(0, PWM_FREQ, PWM_RES);
-    ledcAttachPin(PWMA, 0);
+    // Using channels 2 and 3 because 0 and 1 are claimed by ESP32Servo
+    ledcSetup(2, PWM_FREQ, PWM_RES);
+    ledcAttachPin(PWMA, 2);
 
-    ledcSetup(1, PWM_FREQ, PWM_RES);
-    ledcAttachPin(PWMB, 1);
+    ledcSetup(3, PWM_FREQ, PWM_RES);
+    ledcAttachPin(PWMB, 3);
 
     digitalWrite(STBY, HIGH);
 }
@@ -51,15 +52,15 @@ void TB6612_Driver::setMotorLeft(int16_t speed) {
     if (speed > 0) {
         digitalWrite(AIN1, HIGH);
         digitalWrite(AIN2, LOW);
-        ledcWrite(0, speed);
+        ledcWrite(2, speed);
     } else if (speed < 0) {
         digitalWrite(AIN1, LOW);
         digitalWrite(AIN2, HIGH);
-        ledcWrite(0, -speed);
+        ledcWrite(2, -speed);
     } else {
         digitalWrite(AIN1, HIGH);
         digitalWrite(AIN2, HIGH); // Active short braking
-        ledcWrite(0, 0);
+        ledcWrite(2, 0);
     }
 }
 
@@ -70,14 +71,14 @@ void TB6612_Driver::setMotorRight(int16_t speed) {
     if (speed > 0) {
         digitalWrite(BIN1, HIGH);
         digitalWrite(BIN2, LOW);
-        ledcWrite(1, speed);
+        ledcWrite(3, speed);
     } else if (speed < 0) {
         digitalWrite(BIN1, LOW);
         digitalWrite(BIN2, HIGH);
-        ledcWrite(1, -speed);
+        ledcWrite(3, -speed);
     } else {
         digitalWrite(BIN1, HIGH);
         digitalWrite(BIN2, HIGH); // Active short braking
-        ledcWrite(1, 0);
+        ledcWrite(3, 0);
     }
 }

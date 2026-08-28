@@ -14,7 +14,7 @@ CompassDriver compass;
 DualVL53L0X tofSensors;
 Servo panServo;
 
-#define SERVO_PIN 18 
+#define SERVO_PIN 5
 
 unsigned long lastSensorRead = 0;
 unsigned long lastMotorAction = 0;
