@@ -31,8 +31,12 @@ Item {
         id: base
         anchors.fill: parent
         radius: width / 2
-        color: "#2c2c2c"
-        border.color: "#555"
+        
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#161616" }
+            GradientStop { position: 1.0; color: "#242424" }
+        }
+        border.color: "#383838"
         border.width: 2
         
         Rectangle {
@@ -40,7 +44,13 @@ Item {
             width: root.width / 2.5
             height: root.height / 2.5
             radius: width / 2
-            color: "#00E5FF"
+            
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#00FFFF" }
+                GradientStop { position: 1.0; color: "#00B3CC" }
+            }
+            border.color: "#0088AA"
+            border.width: 1
             
             x: (base.width - width) / 2
             y: (base.height - height) / 2
