@@ -246,15 +246,10 @@ Window {
                 color: "#1e1e1e"
                 radius: 10
 
-                ScrollView {
+                ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 15
-                    clip: true
-                    contentWidth: availableWidth
-
-                    ColumnLayout {
-                        width: parent.width
-                        spacing: 15
+                    spacing: 15
 
                     Text {
                         text: "ACTUATION"
@@ -263,7 +258,7 @@ Window {
                         font.bold: true
                     }
 
-                    // Single Unified Joystick
+                    // Single Unified Joystick (Fixed at top, outside ScrollView)
                     VirtualJoystick {
                         id: mainJoystick
                         Layout.preferredWidth: parent.width * 0.8
@@ -276,53 +271,63 @@ Window {
                         onAxisXChanged: if (typeof commandEmitter !== "undefined") commandEmitter.updateSteering(axisX)
                     }
 
-                    Item { Layout.fillHeight: true }
-                    
-                    // Automations Drawer Toggles
-                    Switch { 
-                        text: "Auto Emergency Brake (AEB)"
-                        onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setAutoBrake(checked)
-                    }
-                    Switch { 
-                        text: "APF Collision Avoidance" 
-                        onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setApfAvoidance(checked)
-                    }
-                    Switch { 
-                        text: "Radar Sweep" 
-                        onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setRadarSweep(checked)
-                    }
-                    
-                    RowLayout {
+                    // Scrollable settings area below the joystick
+                    ScrollView {
                         Layout.fillWidth: true
-                        Text { text: "Speed Mode:"; color: "white" }
-                        ComboBox {
-                            id: speedModeCombo
-                            Layout.fillWidth: true
-                            model: ["Precision (30%)", "Normal (70%)", "Sport (100%)"]
-                            currentIndex: 1 // Default to Normal
-                            onCurrentIndexChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setSpeedMode(currentIndex)
-                        }
-                    }
+                        Layout.fillHeight: true
+                        clip: true
+                        contentWidth: availableWidth
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: "Headlights:"; color: "white" }
-                        ComboBox {
-                            id: headlightCombo
-                            Layout.fillWidth: true
-                            model: ["Off", "On (White)", "Police Strobe", "Custom...", "Rainbow", "Cylon Scanner"]
-                            onCurrentIndexChanged: {
-                                if (typeof commandEmitter !== "undefined") {
-                                    commandEmitter.setHeadlightMode(currentIndex)
+                        ColumnLayout {
+                            width: parent.width
+                            spacing: 10
+                            
+                            // Automations Drawer Toggles
+                            Switch { 
+                                text: "Auto Emergency Brake (AEB)"
+                                onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setAutoBrake(checked)
+                            }
+                            Switch { 
+                                text: "APF Collision Avoidance" 
+                                onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setApfAvoidance(checked)
+                            }
+                            Switch { 
+                                text: "Radar Sweep" 
+                                onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setRadarSweep(checked)
+                            }
+                            
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text { text: "Speed Mode:"; color: "white" }
+                                ComboBox {
+                                    id: speedModeCombo
+                                    Layout.fillWidth: true
+                                    model: ["Precision (30%)", "Normal (70%)", "Sport (100%)"]
+                                    currentIndex: 1 // Default to Normal
+                                    onCurrentIndexChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setSpeedMode(currentIndex)
                                 }
-                                if (currentIndex === 3) {
-                                    customColorDialog.open()
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text { text: "Headlights:"; color: "white" }
+                                ComboBox {
+                                    id: headlightCombo
+                                    Layout.fillWidth: true
+                                    model: ["Off", "On (White)", "Police Strobe", "Custom...", "Rainbow", "Cylon Scanner"]
+                                    onCurrentIndexChanged: {
+                                        if (typeof commandEmitter !== "undefined") {
+                                            commandEmitter.setHeadlightMode(currentIndex)
+                                        }
+                                        if (currentIndex === 3) {
+                                            customColorDialog.open()
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-                    }
-                } // End ScrollView
+                    } // End ScrollView
+                } // End ColumnLayout
             } // End Rectangle
         }
     }
