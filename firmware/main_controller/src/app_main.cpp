@@ -14,7 +14,6 @@
 #include "DualVL53L0X.hpp"
 #include "AutomationEngine.hpp"
 #include "MahonyAHRS.hpp"
-#include <ESP32Servo.h>
 #include <FastLED.h>
 
 // ============================================================
@@ -26,7 +25,6 @@ CompassDriver compass;
 DualVL53L0X tofSensors;
 AutomationEngine autoEngine(&motors, &tofSensors);
 MahonyAHRS ahrs;
-Servo panServo;
 
 // Sensor availability flags (zeroed readings on failure)
 bool imuOk = false;
@@ -96,23 +94,15 @@ void setup()
     // Initialize Actuators (init() also releases standby / STBY=HIGH)
     motors.init();
 
-    // Initialize Radar Servo
-    // Allocate all timers to ensure ESP32Servo can find a free one that doesn't conflict with LEDC/Motors
-    ESP32PWM::allocateTimer(0);
-    ESP32PWM::allocateTimer(1);
-    ESP32PWM::allocateTimer(2);
-    ESP32PWM::allocateTimer(3);
-    panServo.setPeriodHertz(50);
-    panServo.attach(18, 500, 2400);
-    if (panServo.attached())
-    {
-        panServo.write(servoAngle);
-        Serial.println("Servo attached on GPIO18");
-    }
-    else
-    {
-        Serial.println("Servo attach failed on GPIO18");
-    }
+    // Initialize Radar Servo (Native LEDC API to prevent timer conflicts)
+    // 50Hz -> 20ms period. 16-bit resolution -> 65536 values
+    ledcSetup(5, 50, 16);
+    ledcAttachPin(18, 5);
+    
+    // Set to 90 degrees initially
+    // 90 deg ~ 1450us pulse. (1450 / 20000) * 65536 = 4751
+    ledcWrite(5, 4751);
+    Serial.println("Native Servo attached on GPIO18 (Channel 5)");
 
     // Initialize Addressable LEDs
     FastLED.addLeds<WS2812B, LED_PIN_LEFT, GRB>(ledsLeft, NUM_LEDS);
@@ -262,7 +252,10 @@ void loop()
                 servoAngle = 0;
                 servoDir = 1;
             }
-            panServo.write(servoAngle);
+            
+            // Map 0-180 to 500us-2400us (duty cycle 1638-7864 for 16-bit 50Hz)
+            uint32_t duty = 1638 + ((7864 - 1638) * servoAngle) / 180;
+            ledcWrite(5, duty);
         }
     }
     else
@@ -270,7 +263,7 @@ void loop()
         if (servoAngle != 90)
         {
             servoAngle = 90;
-            panServo.write(90);
+            ledcWrite(5, 4751); // 90 degrees
         }
     }
 
