@@ -13,6 +13,7 @@ class TelemetryClient : public QObject {
     Q_PROPERTY(float yaw READ yaw NOTIFY telemetryUpdated)
     Q_PROPERTY(float headingCompassDeg READ headingCompassDeg NOTIFY telemetryUpdated)
     Q_PROPERTY(float batteryVoltage READ batteryVoltage NOTIFY telemetryUpdated)
+    Q_PROPERTY(float imuTempC READ imuTempC NOTIFY telemetryUpdated)
     Q_PROPERTY(int tof1DistMm READ tof1DistMm NOTIFY telemetryUpdated)
     Q_PROPERTY(int tof2DistMm READ tof2DistMm NOTIFY telemetryUpdated)
     Q_PROPERTY(int servoAngleDeg READ servoAngleDeg NOTIFY telemetryUpdated)
@@ -28,6 +29,7 @@ public:
     float yaw() const { return m_packet.yawDeg; }
     float headingCompassDeg() const { return m_packet.headingCompassDeg; }
     float batteryVoltage() const { return m_packet.batteryVoltage; }
+    float imuTempC() const { return m_packet.imuTempC; }
     int tof1DistMm() const { return m_packet.tof1DistMm; }
     int tof2DistMm() const { return m_packet.tof2DistMm; }
     int servoAngleDeg() const { return m_packet.servoAngleDeg; }

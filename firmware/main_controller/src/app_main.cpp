@@ -14,6 +14,8 @@
 #include "DualVL53L0X.hpp"
 #include "AutomationEngine.hpp"
 #include "MahonyAHRS.hpp"
+#include <ESP32Servo.h>
+#include <FastLED.h>
 
 // ============================================================
 // Global Objects
@@ -24,6 +26,7 @@ CompassDriver     compass;
 DualVL53L0X       tofSensors;
 AutomationEngine  autoEngine(&motors, &tofSensors);
 MahonyAHRS        ahrs;
+Servo             panServo;
 
 // Sensor availability flags (zeroed readings on failure)
 bool imuOk     = false;
@@ -40,6 +43,17 @@ VehicleCommandPacket   lastCommand;
 
 int16_t lastLeftPwm  = 0; // Last commanded PWM for telemetry
 int16_t lastRightPwm = 0;
+
+int servoAngle = 90;
+int servoDir = 1;
+unsigned long lastServoTime = 0;
+
+// LED Strips
+#define NUM_LEDS 3
+#define LED_PIN_LEFT 23
+#define LED_PIN_RIGHT 19
+CRGB ledsLeft[NUM_LEDS];
+CRGB ledsRight[NUM_LEDS];
 
 unsigned long lastTelemetryTime = 0;
 const unsigned long TELEMETRY_INTERVAL = 20; // 50 Hz
@@ -61,6 +75,9 @@ void setup() {
     imuOk     = imu.begin();
     compassOk = compass.begin();
     tofOk     = tofSensors.init();
+    
+    // Battery Voltage Pin
+    pinMode(34, INPUT);
 
     Serial.println("Sensor status:");
     Serial.printf("  MPU6050     : %s\n", imuOk     ? "OK" : "FAILED");
@@ -74,6 +91,17 @@ void setup() {
 
     // Initialize Actuators (init() also releases standby / STBY=HIGH)
     motors.init();
+
+    // Initialize Radar Servo
+    panServo.setPeriodHertz(50);
+    panServo.attach(18, 500, 2400);
+    panServo.write(servoAngle);
+
+    // Initialize Addressable LEDs
+    FastLED.addLeds<WS2812B, LED_PIN_LEFT, GRB>(ledsLeft, NUM_LEDS);
+    FastLED.addLeds<WS2812B, LED_PIN_RIGHT, GRB>(ledsRight, NUM_LEDS);
+    FastLED.setBrightness(100);
+    FastLED.clear(true);
 
     // Connect to WiFi as station
     WiFi.mode(WIFI_STA);
@@ -89,6 +117,7 @@ void setup() {
 
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("\nConnected to WiFi.");
+        WiFi.setSleep(false); // Disable Wi-Fi power saving to fix UDP dropouts!
         Serial.print("IP address: ");
         Serial.println(WiFi.localIP());
 
@@ -149,6 +178,10 @@ void loop() {
             remoteIP = udp.remoteIP();
             remotePort = udp.remotePort();
 
+            Serial.printf("Cmd RX | Throttle: %d, Steering: %d, AEB: %d, APF: %d\n",
+                          lastCommand.throttleAxis, lastCommand.steeringAxis,
+                          lastCommand.enableAutoBrake, lastCommand.enableApfAvoidance);
+
             // Apply command to Automation Engine & Motors
             autoEngine.setAEB(lastCommand.enableAutoBrake);
             autoEngine.setAPF(lastCommand.enableApfAvoidance);
@@ -164,6 +197,22 @@ void loop() {
 
     // 2. Automation Update
     autoEngine.update();
+
+    // Radar Sweep Update
+    if (lastCommand.enableRadarSweep) {
+        if (millis() - lastServoTime > 15) {
+            lastServoTime = millis();
+            servoAngle += servoDir * 2;
+            if (servoAngle >= 180) { servoAngle = 180; servoDir = -1; }
+            if (servoAngle <= 0) { servoAngle = 0; servoDir = 1; }
+            panServo.write(servoAngle);
+        }
+    } else {
+        if (servoAngle != 90) {
+            servoAngle = 90;
+            panServo.write(90);
+        }
+    }
 
     // 3. Sensor Fusion & Telemetry (50Hz)
     if (millis() - lastTelemetryTime >= TELEMETRY_INTERVAL) {
@@ -184,7 +233,12 @@ void loop() {
         // AHRS only runs when the IMU is present
         float pitch = 0.0f, roll = 0.0f, yaw = 0.0f;
         if (imuOk) {
-            ahrs.updateIMU(gx, gy, gz, ax, ay, az); // AHRS from gyro+accel only
+            // Mahony AHRS requires Gyro in Radians per second, but MPU driver outputs Degrees per second
+            float gx_rad = gx * PI / 180.0f;
+            float gy_rad = gy * PI / 180.0f;
+            float gz_rad = gz * PI / 180.0f;
+
+            ahrs.updateIMU(gx_rad, gy_rad, gz_rad, ax, ay, az); // AHRS from gyro+accel only
             ahrs.getEulerAngles(pitch, roll, yaw);
         }
 
@@ -204,7 +258,86 @@ void loop() {
 
         telemetry.motorLeftPwm = lastLeftPwm;
         telemetry.motorRightPwm = lastRightPwm;
-        telemetry.batteryVoltage = 12.0f; // Mock battery voltage
+        
+        // 1/3 Voltage Divider on Pin 34
+        // ADC 0-4095 maps to 0-3.3V (default 11dB attenuation)
+        float v_adc = (analogRead(34) / 4095.0f) * 3.3f;
+        telemetry.batteryVoltage = v_adc * 4.3f; 
+        
+        telemetry.imuTempC = t;
+        telemetry.servoAngleDeg = servoAngle - 90; // -90 to +90
+        telemetry.statusFlags = 0x00;
+        
+        // Update FastLED based on lastCommand
+        bool leftBlinker = (lastCommand.steeringAxis < -100);
+        bool rightBlinker = (lastCommand.steeringAxis > 100);
+        bool reverse = (lastCommand.throttleAxis < -50);
+        bool blinkState = (millis() % 1000) > 500;
+        
+        uint8_t headlightMode = lastCommand.headlightMode;
+        
+        for (int i = 0; i < NUM_LEDS; i++) {
+            if (reverse) {
+                ledsLeft[i] = CRGB::Red;
+                ledsRight[i] = CRGB::Red;
+            } else {
+                if (headlightMode == 1) {
+                    ledsLeft[i] = CRGB(100, 100, 100); // Bright white
+                    ledsRight[i] = CRGB(100, 100, 100);
+                } else if (headlightMode == 2) {
+                    // Police Strobe logic
+                    bool strobeLeft = (millis() % 400) < 200;
+                    bool strobeFast = (millis() % 100) < 50;
+                    if (strobeLeft && strobeFast) {
+                        ledsLeft[i] = CRGB::Red;
+                        ledsRight[i] = CRGB::Black;
+                    } else if (!strobeLeft && strobeFast) {
+                        ledsLeft[i] = CRGB::Black;
+                        ledsRight[i] = CRGB::Blue;
+                    } else {
+                        ledsLeft[i] = CRGB::Black;
+                        ledsRight[i] = CRGB::Black;
+                    }
+                } else if (headlightMode == 3) {
+                    CRGB customColor = CRGB(lastCommand.customLedR, lastCommand.customLedG, lastCommand.customLedB);
+                    ledsLeft[i] = customColor;
+                    ledsRight[i] = customColor;
+                } else if (headlightMode == 4) {
+                    // Rainbow Mode
+                    uint8_t hueOffset = (millis() / 20) % 255;
+                    ledsLeft[i] = CHSV(hueOffset + (i * 255 / NUM_LEDS), 255, 255);
+                    ledsRight[i] = CHSV(hueOffset + (i * 255 / NUM_LEDS), 255, 255);
+                } else if (headlightMode == 5) {
+                    // Cylon Scanner Mode (Sweeping red dot)
+                    // Sweeps back and forth across the 3 LEDs
+                    int phase = (millis() / 150) % 4; // 0, 1, 2, 1
+                    int activeLed = (phase == 3) ? 1 : phase;
+                    ledsLeft[i] = (i == activeLed) ? CRGB::Red : CRGB::Black;
+                    ledsRight[i] = (i == activeLed) ? CRGB::Red : CRGB::Black;
+                } else {
+                    ledsLeft[i] = CRGB::Black; // Off
+                    ledsRight[i] = CRGB::Black;
+                }
+            }
+        }
+        
+        // Blinkers override all - Audi style sequential
+        // 4 phases: 0 (Off), 1 (Inner), 2 (Middle), 3 (Outer)
+        int blinkPhase = (millis() % 600) / 150; 
+        
+        if (leftBlinker) {
+            for (int i = 0; i < NUM_LEDS; i++) ledsLeft[i] = CRGB::Black;
+            if (blinkPhase >= 1 && NUM_LEDS > 0) ledsLeft[0] = CRGB(255, 120, 0);
+            if (blinkPhase >= 2 && NUM_LEDS > 1) ledsLeft[1] = CRGB(255, 120, 0);
+            if (blinkPhase >= 3 && NUM_LEDS > 2) ledsLeft[2] = CRGB(255, 120, 0);
+        }
+        if (rightBlinker) {
+            for (int i = 0; i < NUM_LEDS; i++) ledsRight[i] = CRGB::Black;
+            if (blinkPhase >= 1 && NUM_LEDS > 0) ledsRight[0] = CRGB(255, 120, 0);
+            if (blinkPhase >= 2 && NUM_LEDS > 1) ledsRight[1] = CRGB(255, 120, 0);
+            if (blinkPhase >= 3 && NUM_LEDS > 2) ledsRight[2] = CRGB(255, 120, 0);
+        }
+        FastLED.show();
         
         // Calculate CRC
         size_t tDataLen = sizeof(VehicleTelemetryPacket) - sizeof(uint16_t);

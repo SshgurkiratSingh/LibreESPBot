@@ -25,6 +25,8 @@ public slots:
     void setApfAvoidance(bool enable);
     void setRadarSweep(bool enable);
     void setSpeedMode(uint8_t mode);
+    void setHeadlightMode(int mode);
+    void setCustomLedColor(int r, int g, int b);
 
 private slots:
     void sendCommandPacket();

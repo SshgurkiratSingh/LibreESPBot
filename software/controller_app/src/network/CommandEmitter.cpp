@@ -41,6 +41,12 @@ void CommandEmitter::setAutoBrake(bool enable) { m_packet.enableAutoBrake = enab
 void CommandEmitter::setApfAvoidance(bool enable) { m_packet.enableApfAvoidance = enable ? 1 : 0; }
 void CommandEmitter::setRadarSweep(bool enable) { m_packet.enableRadarSweep = enable ? 1 : 0; }
 void CommandEmitter::setSpeedMode(uint8_t mode) { m_packet.speedModeLimit = mode; }
+void CommandEmitter::setHeadlightMode(int mode) { m_packet.headlightMode = mode; }
+void CommandEmitter::setCustomLedColor(int r, int g, int b) {
+    m_packet.customLedR = r;
+    m_packet.customLedG = g;
+    m_packet.customLedB = b;
+}
 
 void CommandEmitter::sendCommandPacket() {
     if (m_targetIp.isNull()) return;
