@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(RoverGroundStation VERSION 1.0.0 LANGUAGES CXX)
+project(LibreESPBot VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,9 +17,9 @@ set(SOURCES
     src/mapping/RadarPointCloud.cpp
 )
 
-qt_add_executable(RoverGroundStation ${SOURCES})
+qt_add_executable(LibreESPBot ${SOURCES})
 
-target_link_libraries(RoverGroundStation PRIVATE
+target_link_libraries(LibreESPBot PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Qml
@@ -29,7 +29,7 @@ target_link_libraries(RoverGroundStation PRIVATE
 )
 
 # QML files
-qt_add_qml_module(RoverGroundStation
+qt_add_qml_module(LibreESPBot
     URI "RoverControl"
     VERSION 1.0
     QML_FILES
@@ -43,9 +43,9 @@ qt_add_qml_module(RoverGroundStation
         qml/theme/Theme.qml
 )
 
-install(TARGETS RoverGroundStation
+install(TARGETS LibreESPBot
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-set_target_properties(RoverGroundStation PROPERTIES QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
+set_target_properties(LibreESPBot PROPERTIES QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")

@@ -66,7 +66,7 @@ Rectangle {
             
             Text { text: "Battery"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? telemetryClient.batteryVoltage.toFixed(1) + " V" : "---"
+                text: typeof telemetryClient !== "undefined" ? (telemetryClient.batteryVoltage * mainWindow.voltageMultiplier).toFixed(1) + " V" : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }

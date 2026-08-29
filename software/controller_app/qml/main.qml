@@ -13,7 +13,7 @@ Window {
     height: 720
     visible: true
     visibility: Qt.platform.os === "android" ? Window.FullScreen : Window.Windowed
-    title: qsTr("ESP32 Rover Ground Station")
+    title: qsTr("LibreESPBot")
     color: "#121212"
     
     // Globally accessible property
@@ -29,6 +29,7 @@ Window {
     
     property bool enable3dKinematics: false
     property bool reverseTofSensors: false
+    property real voltageMultiplier: 1.0
 
     onKeyThrottleChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
     onKeySteeringChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
@@ -98,6 +99,7 @@ Window {
             else if (event.key === Qt.Key_V) apfSwitch.checked = !apfSwitch.checked;
             else if (event.key === Qt.Key_R) radarSwitch.checked = !radarSwitch.checked;
             else if (event.key === Qt.Key_O) alertSwitch.checked = !alertSwitch.checked;
+            else if (event.key === Qt.Key_N) noLagSwitch.checked = !noLagSwitch.checked;
             else if (event.key === Qt.Key_F) reverseTofSwitch.checked = !reverseTofSwitch.checked;
             else if (event.key === Qt.Key_K) enable3dKinematics = !enable3dKinematics;
             else if (event.key === Qt.Key_1) speedModeCombo.currentIndex = 0;
@@ -372,6 +374,11 @@ Window {
                             
                             // Automations Drawer Toggles
                             Switch { 
+                                id: noLagSwitch
+                                text: "NoLag Hard Realtime [N]"
+                                onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setNoLagMode(checked)
+                            }
+                            Switch { 
                                 id: aebSwitch
                                 text: "Auto Emergency Brake [B]"
                                 onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setAutoBrake(checked)
@@ -576,6 +583,16 @@ Window {
                 TextField {
                     Layout.fillWidth: true
                     text: "0.0"
+                }
+
+                Text { text: "Voltage Scale Multiplier"; color: "gray"; font.pixelSize: 12 }
+                TextField {
+                    Layout.fillWidth: true
+                    text: mainWindow.voltageMultiplier.toString()
+                    onEditingFinished: {
+                        let val = parseFloat(text);
+                        if (!isNaN(val) && val > 0) mainWindow.voltageMultiplier = val;
+                    }
                 }
             }
         }

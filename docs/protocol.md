@@ -2,7 +2,7 @@
 
 ## UDP Zero-Copy Binary Telemetry & Command Link
 
-The ESP32 Rover Platform communicates with the Qt 6 Ground Station exclusively via UDP datagrams over a local Wi-Fi network. To minimize processing overhead and latency on both the ESP32 and the controller, data is serialized into packed C-structs. This avoids the heavy serialization/deserialization penalties associated with JSON or XML.
+The ESP32 Rover Platform communicates with the LibreESPBot exclusively via UDP datagrams over a local Wi-Fi network. To minimize processing overhead and latency on both the ESP32 and the controller, data is serialized into packed C-structs. This avoids the heavy serialization/deserialization penalties associated with JSON or XML.
 
 ### Transmission Rates
 - **Rover -> Controller (Telemetry):** 50 Hz (Port 8889)

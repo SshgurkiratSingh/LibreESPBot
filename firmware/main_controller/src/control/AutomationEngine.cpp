@@ -56,8 +56,8 @@ void AutomationEngine::update(int16_t &leftPwm, int16_t &rightPwm) {
     if (aebEnabled) {
         // If either sensor detects an obstacle closer than the critical threshold, trigger AEB
         if (leftDist < AEB_THRESHOLD_MM || rightDist < AEB_THRESHOLD_MM) {
-            // Only brake if trying to drive forward into the obstacle
-            if (leftPwm > 0 || rightPwm > 0) {
+            // Only brake if trying to drive forward into the obstacle (net forward motion)
+            if ((leftPwm + rightPwm) > 0) {
                 leftPwm = 0;
                 rightPwm = 0;
             }

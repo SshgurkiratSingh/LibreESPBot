@@ -4,7 +4,7 @@
 #include <QVariant>
 
 #define MAX_POINTS 360
-#define POINT_LIFETIME_MS 5000
+#define POINT_LIFETIME_MS 2700
 
 RadarPointCloud::RadarPointCloud(QObject *parent) : QObject(parent) {
     m_pointBuffer.reserve(MAX_POINTS);

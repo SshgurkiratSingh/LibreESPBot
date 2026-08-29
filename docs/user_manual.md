@@ -1,6 +1,6 @@
-# Rover Ground Station - User Manual
+# LibreESPBot - User Manual
 
-This manual provides an overview of the Qt 6 Ground Station interface, keyboard shortcuts, and control logic for operating the ESP32 Rover Platform.
+This manual provides an overview of the LibreESPBot interface, keyboard shortcuts, and control logic for operating the ESP32 Rover Platform.
 
 ## 1. Network Connection
 Upon launching the application, it will attempt to automatically discover the rover via mDNS (`_roverctrl._udp.local`).
