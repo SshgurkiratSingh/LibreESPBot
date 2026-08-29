@@ -103,13 +103,13 @@ jobs:
           chmod +x linuxdeploy*.AppImage
 
           mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
-          cp build/RoverGroundStation AppDir/usr/bin/
+          cp build/LibreESPBot AppDir/usr/bin/
           cp software/controller_app/assets/rover.desktop AppDir/usr/share/applications/
           cp software/controller_app/assets/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/rover.png
 
           QML_SOURCES_PATHS=software/controller_app/qml ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage
           mkdir -p build_artifacts/desktop
-          mv RoverGroundStation*.AppImage build_artifacts/desktop/RoverGroundStation-Linux-x86_64.AppImage
+          mv LibreESPBot*.AppImage build_artifacts/desktop/LibreESPBot-Linux-x86_64.AppImage
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
@@ -150,11 +150,11 @@ jobs:
         shell: cmd
         run: |
           mkdir dist
-          copy build\RoverGroundStation.exe dist\
-          "%RUNNER_WORKSPACE%\Qt\6.6.2\msvc2019_64\bin\windeployqt.exe" --qmldir software/controller_app/qml --release --no-translations dist\RoverGroundStation.exe
-          powershell Compress-Archive -Path dist\* -DestinationPath RoverGroundStation-Windows-x64.zip
+          copy build\LibreESPBot.exe dist\
+          "%RUNNER_WORKSPACE%\Qt\6.6.2\msvc2019_64\bin\windeployqt.exe" --qmldir software/controller_app/qml --release --no-translations dist\LibreESPBot.exe
+          powershell Compress-Archive -Path dist\* -DestinationPath LibreESPBot-Windows-x64.zip
           mkdir build_artifacts\windows
-          move RoverGroundStation-Windows-x64.zip build_artifacts\windows\
+          move LibreESPBot-Windows-x64.zip build_artifacts\windows\
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
@@ -223,13 +223,13 @@ jobs:
       - name: Move, Rename, and Sign APK
         run: |
           mkdir -p build_artifacts/android
-          find build/android-build -name "*.apk" -exec cp {} build_artifacts/android/RoverGroundStation-Android-arm64.apk \;
+          find build/android-build -name "*.apk" -exec cp {} build_artifacts/android/LibreESPBot-Android-arm64.apk \;
           # Generate a temporary release keystore
           keytool -genkey -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=LibreESPBot, OU=Engineering, O=Rover, L=City, S=State, C=US"
           # Find apksigner
           APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -r | head -n 1)
           # V2/V3 Sign the APK so it can be installed on devices
-          $APKSIGNER sign --ks release.keystore --ks-pass pass:android --key-pass pass:android build_artifacts/android/RoverGroundStation-Android-arm64.apk
+          $APKSIGNER sign --ks release.keystore --ks-pass pass:android --key-pass pass:android build_artifacts/android/LibreESPBot-Android-arm64.apk
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
