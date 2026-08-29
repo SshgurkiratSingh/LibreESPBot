@@ -7,7 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network QuickControls2)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network QuickControls2 Multimedia)
 
 set(SOURCES
     src/main.cpp
@@ -26,6 +26,7 @@ target_link_libraries(LibreESPBot PRIVATE
     Qt6::Quick
     Qt6::Network
     Qt6::QuickControls2
+    Qt6::Multimedia
 )
 
 # QML files

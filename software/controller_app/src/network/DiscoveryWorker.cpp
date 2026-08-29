@@ -55,5 +55,17 @@ void DiscoveryWorker::readPendingDatagrams() {
                 }
             }
         }
+        else if (data.contains("_camctrl._udp.local")) {
+            QString senderIp = datagram.senderAddress().toString();
+            if (senderIp.startsWith("::ffff:")) {
+                senderIp = senderIp.mid(7);
+            }
+            
+            if (m_cameraIp != senderIp) {
+                m_cameraIp = senderIp;
+                emit cameraDiscovered(m_cameraIp);
+                qDebug() << "Discovered Camera at:" << m_cameraIp;
+            }
+        }
     }
 }
