@@ -111,7 +111,7 @@ void setup()
 
     // Connect to WiFi as station
     WiFi.mode(WIFI_STA);
-    WiFi.begin("Airtel_Node", "air66343");
+    WiFi.begin("ConForNode", "12345678");
 
     Serial.print("Connecting to WiFi");
     int wifi_retries = 0;
