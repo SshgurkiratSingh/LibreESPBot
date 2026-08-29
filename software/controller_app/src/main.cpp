@@ -5,6 +5,7 @@
 #include "network/TelemetryClient.hpp"
 #include "network/CommandEmitter.hpp"
 #include "network/DiscoveryWorker.hpp"
+#include "network/VideoManager.hpp"
 #include "mapping/RadarPointCloud.hpp"
 
 #include <QQuickStyle>
@@ -13,6 +14,8 @@
 #include <QtCore/QJniObject>
 #include <QtCore/QCoreApplication>
 #endif
+
+#include <QThread>
 
 int main(int argc, char *argv[])
 {
@@ -38,6 +41,20 @@ int main(int argc, char *argv[])
                     window.callMethod<void>("setAttributes", "(Landroid/view/WindowManager$LayoutParams;)V", attrs.object());
                 }
             }
+            // Acquire MulticastLock to allow mDNS discovery packets to reach the app
+            QJniObject wifiManager = activity.callObjectMethod("getSystemService", 
+                                       "(Ljava/lang/String;)Ljava/lang/Object;", 
+                                       QJniObject::fromString("wifi").object<jstring>());
+            if (wifiManager.isValid()) {
+                QJniObject lock = wifiManager.callObjectMethod("createMulticastLock", 
+                                     "(Ljava/lang/String;)Landroid/net/wifi/WifiManager$MulticastLock;", 
+                                     QJniObject::fromString("LibreESPBotMulticastLock").object<jstring>());
+                if (lock.isValid()) {
+                    lock.callMethod<void>("setReferenceCounted", "(Z)V", false);
+                    lock.callMethod<void>("acquire");
+                    qDebug() << "Android MulticastLock acquired successfully!";
+                }
+            }
         }
     });
 #endif
@@ -46,17 +63,25 @@ int main(int argc, char *argv[])
     TelemetryClient telemetryClient;
     CommandEmitter commandEmitter;
     DiscoveryWorker discoveryWorker;
+    VideoManager videoManager;
     RadarPointCloud radarCloud;
 
     // Expose to QML
     engine.rootContext()->setContextProperty("telemetryClient", &telemetryClient);
     engine.rootContext()->setContextProperty("commandEmitter", &commandEmitter);
     engine.rootContext()->setContextProperty("discoveryWorker", &discoveryWorker);
+    engine.rootContext()->setContextProperty("videoManager", &videoManager);
     engine.rootContext()->setContextProperty("radarCloud", &radarCloud);
 
     // Start networking layers
     discoveryWorker.startDiscovery();
     telemetryClient.startListening(8889);
+    
+    // CommandEmitter MUST share the TelemetryClient's bound socket (8889).
+    // This punches exactly one bidirectional UDP hole in the stateful firewall,
+    // and prevents Linux from dropping packets via dual-socket load balancing.
+    commandEmitter.setSharedSocket(telemetryClient.socket());
+    
     // Command emitter target is dynamically set upon mDNS discovery, but we can set a default
     commandEmitter.setTargetAddress("192.168.4.1", 8888); 
     

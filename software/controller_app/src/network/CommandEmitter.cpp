@@ -1,21 +1,30 @@
 #include "CommandEmitter.hpp"
 
 CommandEmitter::CommandEmitter(QObject *parent) 
-    : QObject(parent), m_socket(new QUdpSocket(this)), m_timer(new QTimer(this)) {
+    : QObject(parent), m_socket(new QUdpSocket(this)), m_ownsSocket(true), m_timer(new QTimer(this)) {
     
     memset(&m_packet, 0, sizeof(VehicleCommandPacket));
     m_packet.preamble = 0x55AA;
     m_packet.sequenceId = 0;
     
-    // Bind to 8889 with ShareAddress so outgoing packets originate from 8889.
-    // This allows the ESP32's telemetry reply to 8889 to traverse the stateful firewall.
-    m_socket->bind(QHostAddress::Any, 8889, QUdpSocket::ShareAddress);
+    // Default to own socket, but it will be replaced by shared socket
     
     connect(m_timer, &QTimer::timeout, this, &CommandEmitter::sendCommandPacket);
 }
 
 CommandEmitter::~CommandEmitter() {
     stopEmitting();
+    if (m_ownsSocket && m_socket) {
+        m_socket->deleteLater();
+    }
+}
+
+void CommandEmitter::setSharedSocket(QUdpSocket* socket) {
+    if (m_ownsSocket && m_socket) {
+        m_socket->deleteLater();
+    }
+    m_socket = socket;
+    m_ownsSocket = false;
 }
 
 void CommandEmitter::setTargetAddress(const QString& ip, quint16 port) {

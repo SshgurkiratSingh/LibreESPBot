@@ -1,11 +1,10 @@
 import QtQuick 2.15
-import QtMultimedia
+import QtQuick.Controls 2.15
 
 Rectangle {
     id: root
     color: "#0a0a0a"
 
-    property string streamUrl: ""
     property bool isConnected: false
     
     // Connect to discovery worker to dynamically set the stream URL
@@ -13,60 +12,89 @@ Rectangle {
         target: typeof discoveryWorker !== "undefined" ? discoveryWorker : null
         function onCameraDiscovered(ip) {
             console.log("VideoViewport configuring stream for camera IP: " + ip)
-            root.streamUrl = "http://" + ip + "/"
-            startStream()
-        }
-    }
-
-    MediaPlayer {
-        id: player
-        videoOutput: videoOut
-        source: root.streamUrl
-        
-        onPlaybackStateChanged: {
-            if (playbackState === MediaPlayer.PlayingState) {
+            if (typeof videoManager !== "undefined") {
+                videoManager.startStream(ip)
                 root.isConnected = true
-                watchdogTimer.restart()
             }
         }
-        
-        onErrorOccurred: (error, errorString) => {
-            console.warn("Video stream error:", errorString)
-            root.isConnected = false
+    }
+
+    Component.onCompleted: {
+        if (typeof discoveryWorker !== "undefined" && discoveryWorker.cameraIp !== "") {
+            console.log("VideoViewport using pre-discovered camera IP: " + discoveryWorker.cameraIp)
+            if (typeof videoManager !== "undefined") {
+                videoManager.startStream(discoveryWorker.cameraIp)
+                root.isConnected = true
+            }
         }
     }
 
-    VideoOutput {
-        id: videoOut
-        anchors.fill: parent
-        fillMode: VideoOutput.PreserveAspectCrop
-        visible: root.isConnected
+    Connections {
+        target: typeof videoManager !== "undefined" ? videoManager : null
+        function onFrameReceived() {
+            videoFrame.source = videoManager.currentFrameBase64
+        }
+        function onRecordingSaved(path) {
+            console.log("Video saved to: " + path)
+        }
     }
 
-    // Watchdog timer to detect stuck frames or connection drop
-    Timer {
-        id: watchdogTimer
-        interval: 3000
-        repeat: true
-        running: true
-        onTriggered: {
-            if (root.streamUrl !== "") {
-                if (player.playbackState !== MediaPlayer.PlayingState || !root.isConnected) {
-                    console.log("Video stream appears stuck/disconnected, attempting reconnect...")
-                    root.isConnected = false
-                    player.stop()
-                    // Append timestamp to bust cache
-                    player.source = root.streamUrl + "?t=" + new Date().getTime()
-                    player.play()
+    Image {
+        id: videoFrame
+        anchors.fill: parent
+        fillMode: Image.PreserveAspectCrop
+        visible: root.isConnected
+        cache: false
+        asynchronous: false // Base64 loads instantly, disabling async prevents all flickering
+    }
+
+    // Recording indicator and button
+    Rectangle {
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.margins: 15
+        width: 120
+        height: 36
+        color: "#88000000"
+        radius: 18
+        visible: root.isConnected
+
+        Row {
+            anchors.centerIn: parent
+            spacing: 8
+            
+            Rectangle {
+                width: 12
+                height: 12
+                radius: 6
+                color: (typeof videoManager !== "undefined" && videoManager.isRecording) ? "#FF1744" : "#888888"
+                anchors.verticalCenter: parent.verticalCenter
+                
+                // Pulsing animation when recording
+                SequentialAnimation on opacity {
+                    running: typeof videoManager !== "undefined" && videoManager.isRecording
+                    loops: Animation.Infinite
+                    PropertyAnimation { to: 0.2; duration: 500 }
+                    PropertyAnimation { to: 1.0; duration: 500 }
                 }
             }
+            
+            Text {
+                text: (typeof videoManager !== "undefined" && videoManager.isRecording) ? "REC" : "RECORD"
+                color: "white"
+                font.bold: true
+                font.pixelSize: 12
+                anchors.verticalCenter: parent.verticalCenter
+            }
         }
-    }
 
-    function startStream() {
-        if (root.streamUrl !== "") {
-            player.source = root.streamUrl + "?t=" + new Date().getTime()
-            player.play()
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                if (typeof videoManager !== "undefined") {
+                    videoManager.toggleRecording()
+                }
+            }
         }
     }
 
@@ -74,9 +102,7 @@ Rectangle {
         anchors.centerIn: parent
         width: parent.width * 0.9
         wrapMode: Text.WordWrap
-        text: root.streamUrl === "" 
-              ? "VIDEO STREAM OFFLINE\n(Waiting for ESP32-CAM mDNS Discovery)" 
-              : "RECONNECTING TO CAMERA...\n" + root.streamUrl
+        text: "VIDEO STREAM OFFLINE\n(Waiting for ESP32-CAM mDNS Discovery or Manual IP)" 
         color: "#FF1744"
         font.pixelSize: 16
         font.bold: true

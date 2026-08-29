@@ -113,6 +113,28 @@ static esp_err_t stream_handler(httpd_req_t *req) {
     return res;
 }
 
+// Single JPEG Frame Handler for zero-latency polling
+static esp_err_t capture_handler(httpd_req_t *req) {
+    camera_fb_t * fb = NULL;
+    esp_err_t res = ESP_OK;
+
+    fb = esp_camera_fb_get();
+    if (!fb) {
+        Serial.println("FB acquisition fault");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "image/jpeg");
+    httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
+    res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
+    
+    esp_camera_fb_return(fb);
+    return res;
+}
+
 static esp_err_t cmd_handler(httpd_req_t *req) {
     char*  buf;
     size_t buf_len;
@@ -168,6 +190,13 @@ void startCameraServer(){
         .user_ctx  = NULL
     };
 
+    httpd_uri_t capture_uri = {
+        .uri       = "/capture",
+        .method    = HTTP_GET,
+        .handler   = capture_handler,
+        .user_ctx  = NULL
+    };
+
     httpd_uri_t cmd_uri = {
         .uri       = "/control",
         .method    = HTTP_GET,
@@ -177,6 +206,7 @@ void startCameraServer(){
 
     if (httpd_start(&camera_httpd, &config) == ESP_OK) {
         httpd_register_uri_handler(camera_httpd, &stream_uri);
+        httpd_register_uri_handler(camera_httpd, &capture_uri);
         httpd_register_uri_handler(camera_httpd, &cmd_uri);
         Serial.println("Asynchronous HTTP daemon instantiated.");
     }

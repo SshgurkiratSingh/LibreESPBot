@@ -23,6 +23,7 @@ public:
     ~TelemetryClient();
 
     void startListening(quint16 port = 8889);
+    QUdpSocket* socket() const { return m_socket; }
     
     float pitch() const { return m_packet.pitchDeg; }
     float roll() const { return m_packet.rollDeg; }

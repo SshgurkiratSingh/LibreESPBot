@@ -30,19 +30,27 @@ void TelemetryClient::readPendingDatagrams() {
             memcpy(&packet, data.constData(), sizeof(VehicleTelemetryPacket));
             
             // Check Preamble
-            if (packet.preamble != 0xAA55) continue;
+            if (packet.preamble != 0xAA55) {
+                qWarning() << "[Telemetry] Invalid preamble:" << Qt::hex << packet.preamble;
+                continue;
+            }
             
             // CRC-16-CCITT Verification
             size_t dataLen = sizeof(VehicleTelemetryPacket) - sizeof(uint16_t);
             uint16_t computedCrc = calculateCrc16(reinterpret_cast<const uint8_t*>(&packet), dataLen);
             
             if (computedCrc == packet.crc16) {
+                qint64 now = QDateTime::currentMSecsSinceEpoch();
+                qint64 interval = (m_lastPacketTime == 0) ? 0 : (now - m_lastPacketTime);
                 m_packet = packet;
-                m_lastPacketTime = QDateTime::currentMSecsSinceEpoch();
+                m_lastPacketTime = now;
                 emit telemetryUpdated();
+                qDebug() << "[Telemetry] Valid packet. Size:" << data.size() << "Interval since last:" << interval << "ms";
             } else {
-                qWarning() << "Telemetry CRC mismatch. Computed:" << computedCrc << "Received:" << packet.crc16;
+                qWarning() << "[Telemetry] CRC mismatch. Computed:" << Qt::hex << computedCrc << "Received:" << packet.crc16;
             }
+        } else {
+            qWarning() << "[Telemetry] Dropped packet! Size mismatch. Expected:" << sizeof(VehicleTelemetryPacket) << "Got:" << data.size();
         }
     }
 }

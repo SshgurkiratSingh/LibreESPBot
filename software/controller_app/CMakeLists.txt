@@ -7,13 +7,14 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network QuickControls2 Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network QuickControls2 Multimedia Concurrent)
 
 set(SOURCES
     src/main.cpp
     src/network/TelemetryClient.cpp
     src/network/CommandEmitter.cpp
     src/network/DiscoveryWorker.cpp
+    src/network/VideoManager.cpp
     src/mapping/RadarPointCloud.cpp
 )
 
@@ -27,6 +28,7 @@ target_link_libraries(LibreESPBot PRIVATE
     Qt6::Network
     Qt6::QuickControls2
     Qt6::Multimedia
+    Qt6::Concurrent
 )
 
 # QML files

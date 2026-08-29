@@ -10,12 +10,29 @@ DiscoveryWorker::~DiscoveryWorker() {
     m_socket->close();
 }
 
+#include <QNetworkInterface>
+
 void DiscoveryWorker::startDiscovery() {
     // Listen for mDNS traffic on multicast group 224.0.0.251 port 5353
-    if (m_socket->bind(QHostAddress::AnyIPv4, 5353, QUdpSocket::ShareAddress)) {
-        m_socket->joinMulticastGroup(QHostAddress("224.0.0.251"));
+    if (m_socket->bind(QHostAddress::AnyIPv4, 5353, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
+        
+        QHostAddress groupAddress("224.0.0.251");
+        
+        // CRITICAL FIX FOR WINDOWS/ANDROID:
+        // Do not rely on the OS to pick the default interface for multicast.
+        // Explicitly join the multicast group on EVERY active, multicast-capable network interface.
+        const QList<QNetworkInterface> interfaces = QNetworkInterface::allInterfaces();
+        for (const QNetworkInterface &iface : interfaces) {
+            if ((iface.flags() & QNetworkInterface::IsUp) && 
+                (iface.flags() & QNetworkInterface::CanMulticast) &&
+                !(iface.flags() & QNetworkInterface::IsLoopBack)) {
+                
+                m_socket->joinMulticastGroup(groupAddress, iface);
+            }
+        }
+        
         connect(m_socket, &QUdpSocket::readyRead, this, &DiscoveryWorker::readPendingDatagrams);
-        qDebug() << "DiscoveryWorker started mDNS listening.";
+        qDebug() << "DiscoveryWorker started mDNS listening on all active interfaces.";
     } else {
         qWarning() << "DiscoveryWorker failed to bind to mDNS port.";
     }
@@ -27,6 +44,14 @@ void DiscoveryWorker::setManualIp(const QString& ip) {
         m_hardwareProfile = "Manual Override";
         emit roverDiscovered(m_roverIp, m_hardwareProfile);
         qDebug() << "Manual IP set to:" << m_roverIp;
+    }
+}
+
+void DiscoveryWorker::setManualCameraIp(const QString& ip) {
+    if (m_cameraIp != ip) {
+        m_cameraIp = ip;
+        emit cameraDiscovered(m_cameraIp);
+        qDebug() << "Manual Camera IP set to:" << m_cameraIp;
     }
 }
 
