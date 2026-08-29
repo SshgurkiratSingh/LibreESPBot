@@ -480,7 +480,7 @@ Window {
                 
                 Text { text: "Network Connection"; color: "white"; font.bold: true }
                 
-                Text { text: "Manual IP Override"; color: "gray"; font.pixelSize: 12 }
+                Text { text: "Rover IP Override"; color: "gray"; font.pixelSize: 12 }
                 TextField {
                     Layout.fillWidth: true
                     placeholderText: "e.g., 192.168.4.1"
@@ -488,6 +488,17 @@ Window {
                         if (text.length > 0 && typeof discoveryWorker !== "undefined" && typeof commandEmitter !== "undefined") {
                             discoveryWorker.setManualIp(text);
                             commandEmitter.setTargetAddress(text, 8888);
+                        }
+                    }
+                }
+                
+                Text { text: "Camera IP Override"; color: "gray"; font.pixelSize: 12 }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholderText: "e.g., 192.168.4.2"
+                    onEditingFinished: {
+                        if (text.length > 0 && typeof discoveryWorker !== "undefined") {
+                            discoveryWorker.setManualCameraIp(text);
                         }
                     }
                 }

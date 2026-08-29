@@ -15,6 +15,7 @@ public:
 
 public slots:
     void setTargetAddress(const QString& ip, quint16 port = 8888);
+    void setSharedSocket(QUdpSocket* socket);
     void startEmitting(int intervalMs = 20); // 50 Hz = 20 ms
     void stopEmitting();
 
@@ -36,6 +37,7 @@ private:
     uint16_t calculateCrc16(const uint8_t *data, size_t length);
 
     QUdpSocket *m_socket;
+    bool m_ownsSocket;
     QTimer *m_timer;
     QHostAddress m_targetIp;
     quint16 m_targetPort;
