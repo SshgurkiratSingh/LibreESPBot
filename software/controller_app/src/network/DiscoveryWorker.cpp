@@ -21,6 +21,15 @@ void DiscoveryWorker::startDiscovery() {
     }
 }
 
+void DiscoveryWorker::setManualIp(const QString& ip) {
+    if (m_roverIp != ip) {
+        m_roverIp = ip;
+        m_hardwareProfile = "Manual Override";
+        emit roverDiscovered(m_roverIp, m_hardwareProfile);
+        qDebug() << "Manual IP set to:" << m_roverIp;
+    }
+}
+
 void DiscoveryWorker::readPendingDatagrams() {
     while (m_socket->hasPendingDatagrams()) {
         QNetworkDatagram datagram = m_socket->receiveDatagram();

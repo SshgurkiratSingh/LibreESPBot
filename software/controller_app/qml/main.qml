@@ -477,6 +477,26 @@ Window {
                     height: 1
                     color: "#555"
                 }
+                
+                Text { text: "Network Connection"; color: "white"; font.bold: true }
+                
+                Text { text: "Manual IP Override"; color: "gray"; font.pixelSize: 12 }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholderText: "e.g., 192.168.4.1"
+                    onEditingFinished: {
+                        if (text.length > 0 && typeof discoveryWorker !== "undefined" && typeof commandEmitter !== "undefined") {
+                            discoveryWorker.setManualIp(text);
+                            commandEmitter.setTargetAddress(text, 8888);
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: "#555"
+                }
 
                 Text { text: "Display Configuration"; color: "white"; font.bold: true }
                 

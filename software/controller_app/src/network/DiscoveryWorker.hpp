@@ -15,6 +15,9 @@ public:
 
     void startDiscovery();
     
+public slots:
+    void setManualIp(const QString& ip);
+    
     QString roverIp() const { return m_roverIp; }
     QString hardwareProfile() const { return m_hardwareProfile; }
 
