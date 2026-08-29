@@ -1,8 +1,8 @@
 <div align="center">
-  <img src="docs/Images/AppLogo.png" alt="Rover Ground Station Logo" width="400"/>
+  <img src="docs/Images/AppLogo.png" alt="LibreESPBot Logo" width="400"/>
 </div>
 
-# ESP32 Multi-Sensor Rover & Qt 6 Ground Station
+# ESP32 Multi-Sensor Rover & LibreESPBot
 
 Welcome to the **ESP32 Rover Platform** monorepo! This repository houses a production-grade, highly modular robotics platform and its cross-platform Qt 6 controller application.
 
@@ -12,7 +12,7 @@ This project transitioned from a simple legacy ESP8266 Wi-Fi RC car into an adva
 
 ## Monorepo Architecture
 
-The workspace is organized as a unified monorepo encompassing the embedded targets, cross-platform ground station, hardware schematics, and automated continuous deployment workflows.
+The workspace is organized as a unified monorepo encompassing the embedded targets, cross-platform LibreESPBot, hardware schematics, and automated continuous deployment workflows.
 
 ```text
 esp32-rover-platform/
@@ -29,7 +29,7 @@ esp32-rover-platform/
 │   │   └── src/                # Implementation: Core, Drivers, Control, Protocol
 │   └── cam_streamer/           # Secondary ESP32-CAM Node (RTSP/MJPEG Streamer)
 ├── software/
-│   └── controller_app/         # Cross-Platform Qt 6 / QML Ground Station
+│   └── controller_app/         # Cross-Platform Qt 6 / QML LibreESPBot
 │       ├── android/            # Android APK build configurations
 │       ├── qml/                # Qt Quick UI (Radar, Horizon, Joysticks)
 │       └── src/                # C++ Backend (mDNS Discovery, UDP Telemetry)
@@ -69,13 +69,13 @@ pio run -e firmware_sensor_calibration
 
 ---
 
-## Qt 6 Ground Station (`software/controller_app`)
+## LibreESPBot (`software/controller_app`)
 
 A high-performance controller application written in **C++ and QML (Qt 6)**. It utilizes a highly responsive multithreaded architecture.
 
 <div align="center">
-  <img src="docs/Images/DisconnectedApp.png" alt="Ground Station Disconnected State" width="600"/>
-  <p><i>The Qt 6 Ground Station in its disconnected UI state, displaying the Cybernetic HUD.</i></p>
+  <img src="docs/Images/DisconnectedApp.png" alt="LibreESPBot Disconnected State" width="600"/>
+  <p><i>The LibreESPBot in its disconnected UI state, displaying the Cybernetic HUD.</i></p>
 </div>
 
 ### Key Features

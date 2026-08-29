@@ -47,9 +47,9 @@ Follow the serial monitor prompts to rotate the vehicle and store values in the 
 
 ---
 
-## 3. Building the Qt 6 Ground Station
+## 3. Building the LibreESPBot
 
-The ground station utilizes a standard CMake build flow. 
+The LibreESPBot utilizes a standard CMake build flow. 
 
 ### Desktop (Linux / Windows)
 1. Navigate to the controller software directory:

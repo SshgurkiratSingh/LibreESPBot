@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=RoverGroundStation
-Exec=RoverGroundStation
+Name=LibreESPBot
+Exec=LibreESPBot
 Icon=rover
 Type=Application
 Categories=Development;

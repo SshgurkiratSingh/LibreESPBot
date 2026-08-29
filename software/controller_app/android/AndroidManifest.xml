@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
-<manifest package="org.qtproject.example.RoverGroundStation" xmlns:android="http://schemas.android.com/apk/res/android" android:versionName="2.1.20" android:versionCode="2" android:installLocation="auto">
-    <application android:hardwareAccelerated="true" android:name="org.qtproject.qt.android.bindings.QtApplication" android:label="RoverControl" android:icon="@drawable/icon">
-        <activity android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density" android:name="org.qtproject.qt.android.bindings.QtActivity" android:label="RoverControl" android:screenOrientation="unspecified" android:launchMode="singleTop" android:exported="true">
+<manifest package="org.qtproject.example.LibreESPBot" xmlns:android="http://schemas.android.com/apk/res/android" android:versionName="2.1.20" android:versionCode="2" android:installLocation="auto">
+    <application android:hardwareAccelerated="true" android:name="org.qtproject.qt.android.bindings.QtApplication" android:label="LibreESPBot" android:icon="@drawable/icon">
+        <activity android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density" android:name="org.qtproject.qt.android.bindings.QtActivity" android:label="LibreESPBot" android:screenOrientation="unspecified" android:launchMode="singleTop" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <meta-data android:name="android.app.lib_name" android:value="RoverGroundStation"/>
+            <meta-data android:name="android.app.lib_name" android:value="LibreESPBot"/>
         </activity>
     </application>
 </manifest>

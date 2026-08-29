@@ -15,6 +15,7 @@
 #include "AutomationEngine.hpp"
 #include "MahonyAHRS.hpp"
 #include <FastLED.h>
+#include <ESP32Servo.h>
 
 // ============================================================
 // Global Objects
@@ -23,6 +24,7 @@ TB6612_Driver motors; // Pins are hardcoded inside TB6612_Driver
 MpuDriver imu;
 CompassDriver compass;
 DualVL53L0X tofSensors;
+Servo panServo;
 AutomationEngine autoEngine(&motors, &tofSensors);
 MahonyAHRS ahrs;
 
@@ -94,15 +96,12 @@ void setup()
     // Initialize Actuators (init() also releases standby / STBY=HIGH)
     motors.init();
 
-    // Initialize Radar Servo (Native LEDC API to prevent timer conflicts)
-    // 50Hz -> 20ms period. 16-bit resolution -> 65536 values
-    ledcSetup(5, 50, 16);
-    ledcAttachPin(18, 5);
-    
-    // Set to 90 degrees initially
-    // 90 deg ~ 1450us pulse. (1450 / 20000) * 65536 = 4751
-    ledcWrite(5, 4751);
-    Serial.println("Native Servo attached on GPIO18 (Channel 5)");
+    // Initialize Radar Servo
+    ESP32PWM::allocateTimer(2);
+    panServo.setPeriodHertz(50);
+    panServo.attach(18, 500, 2400);
+    panServo.write(90);
+    Serial.println("Servo attached on GPIO18");
 
     // Initialize Addressable LEDs
     FastLED.addLeds<WS2812B, LED_PIN_LEFT, GRB>(ledsLeft, NUM_LEDS);
@@ -236,40 +235,29 @@ void loop()
     int16_t currentRight = baseRightPwm;
     autoEngine.update(currentLeft, currentRight);
 
-    // Radar Sweep Update
-    if (lastCommand.enableRadarSweep)
+    // Radar Sweep Update (Skip if noLagMode)
+    if (!lastCommand.enableNoLagMode && lastCommand.enableRadarSweep)
     {
         if (millis() - lastServoTime > 15)
         {
             lastServoTime = millis();
             servoAngle += servoDir * 2;
-            if (servoAngle >= 180)
-            {
-                servoAngle = 180;
-                servoDir = -1;
-            }
-            if (servoAngle <= 0)
-            {
-                servoAngle = 0;
-                servoDir = 1;
-            }
-            
-            // Map 0-180 to 500us-2400us (duty cycle 1638-7864 for 16-bit 50Hz)
-            uint32_t duty = 1638 + ((7864 - 1638) * servoAngle) / 180;
-            ledcWrite(5, duty);
+            if (servoAngle >= 180) { servoAngle = 180; servoDir = -1; }
+            if (servoAngle <= 0) { servoAngle = 0; servoDir = 1; }
+            panServo.write(servoAngle);
         }
     }
-    else
+    else if (!lastCommand.enableNoLagMode)
     {
         if (servoAngle != 90)
         {
             servoAngle = 90;
-            ledcWrite(5, 4751); // 90 degrees
+            panServo.write(90);
         }
     }
 
-    // 3. Sensor Fusion & Telemetry (50Hz)
-    if (millis() - lastTelemetryTime >= TELEMETRY_INTERVAL)
+    // 3. Sensor Fusion & Telemetry (50Hz) (Skip if noLagMode)
+    if (!lastCommand.enableNoLagMode && millis() - lastTelemetryTime >= TELEMETRY_INTERVAL)
     {
         lastTelemetryTime = millis();
 
@@ -433,11 +421,11 @@ void loop()
 
         if (remotePort != 0)
         {
-            udp.beginPacket(remoteIP, 8889); // Ground Station telemetry listener port
+            udp.beginPacket(remoteIP, 8889); // LibreESPBot telemetry listener port
             udp.write((const uint8_t *)&telemetry, sizeof(VehicleTelemetryPacket));
             udp.endPacket();
         }
-    }
+    } // End of !lastCommand.enableNoLagMode block for LED & Telemetry
 
     // 4. Discovery Beacon (1Hz)
     // The Qt app is passively listening on 5353 for a packet containing _roverctrl._udp.local and drv=

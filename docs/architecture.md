@@ -4,7 +4,7 @@
 The ESP32 Rover Platform is divided into two primary subsystems communicating over a high-speed, zero-copy UDP link over a local Wi-Fi network.
 
 1. **Firmware (ESP32 Node)**: Real-time sensor fusion, hardware abstraction, and kinematic control.
-2. **Software (Qt 6 Ground Station)**: Cross-platform user interface, data visualization, and input transmission.
+2. **Software (LibreESPBot)**: Cross-platform user interface, data visualization, and input transmission.
 
 ---
 
@@ -25,7 +25,7 @@ The platform supports a modular hardware approach. Using `platformio.ini` build 
 
 ---
 
-## 2. Qt 6 Ground Station Layer
+## 2. LibreESPBot Layer
 
 The controller application is built on the Qt 6 framework, designed for seamless cross-compilation to Windows, Linux (AppImage), and Android.
 

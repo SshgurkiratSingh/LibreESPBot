@@ -24,6 +24,11 @@ Canvas {
             ctx.beginPath();
             ctx.arc(centerX, centerY, r, 0, 2 * Math.PI);
             ctx.stroke();
+            
+            // Draw distance label
+            ctx.fillStyle = "#00E5FF";
+            ctx.font = "10px sans-serif";
+            ctx.fillText(ringDistances[i] + "mm", centerX + 5, centerY - r - 5);
         }
         
         ctx.globalAlpha = 1.0;

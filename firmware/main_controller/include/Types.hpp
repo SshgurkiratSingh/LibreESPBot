@@ -52,6 +52,7 @@ struct VehicleCommandPacket {
     uint8_t  customLedR;
     uint8_t  customLedG;
     uint8_t  customLedB;
+    uint8_t  enableNoLagMode; // Hard real-time mode (disables non-essential tasks)
     
     uint16_t crc16;
 };
