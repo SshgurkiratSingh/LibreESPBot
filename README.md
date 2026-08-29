@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="docs/Images/AppLogo.png" alt="Rover Ground Station Logo" width="400"/>
+</div>
+
 # ESP32 Multi-Sensor Rover & Qt 6 Ground Station
 
 Welcome to the **ESP32 Rover Platform** monorepo! This repository houses a production-grade, highly modular robotics platform and its cross-platform Qt 6 controller application.
@@ -42,6 +46,7 @@ For detailed deep-dives into the architecture, communication protocol, and build
 - [System Architecture](docs/architecture.md): Overview of the firmware modularity and Qt 6 application structure.
 - [Communication Protocol](docs/protocol.md): Definitions for the zero-copy binary telemetry and command packets, including CRC-16-CCITT validation.
 - [Setup & Developer Guide](docs/setup_guide.md): Instructions on how to compile the ESP32 PlatformIO environments and the Qt 6 CMake project.
+- [User Manual](docs/user_manual.md): Comprehensive guide on UI features, keyboard shortcuts, and control mappings.
 
 ---
 
@@ -67,6 +72,11 @@ pio run -e firmware_sensor_calibration
 ## Qt 6 Ground Station (`software/controller_app`)
 
 A high-performance controller application written in **C++ and QML (Qt 6)**. It utilizes a highly responsive multithreaded architecture.
+
+<div align="center">
+  <img src="docs/Images/DisconnectedApp.png" alt="Ground Station Disconnected State" width="600"/>
+  <p><i>The Qt 6 Ground Station in its disconnected UI state, displaying the Cybernetic HUD.</i></p>
+</div>
 
 ### Key Features
 - **Cross-Platform**: Deployable to Linux (AppImage), Windows (Standalone ZIP), and Android (Universal APK).
