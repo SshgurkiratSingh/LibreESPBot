@@ -349,6 +349,26 @@ Window {
                         ColumnLayout {
                             width: parent.width
                             spacing: 10
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text { text: "Speed Mode [1-4]:"; color: "white" }
+                                ComboBox {
+                                    id: speedModeCombo
+                                    Layout.fillWidth: true
+                                    model: ["Crawl (15%)", "Precision (30%)", "Normal (70%)", "Sport (100%)"]
+                                    currentIndex: 2 // Default to Normal (index 2 now)
+                                    onCurrentIndexChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setSpeedMode(currentIndex)
+                                }
+                            }
+                            
+                            Switch { 
+                                id: reverseTofSwitch
+                                text: "Reverse ToF (Front/Back) [F]" 
+                                checked: reverseTofSensors
+                                onCheckedChanged: reverseTofSensors = checked
+                            }
+
                             
                             // Automations Drawer Toggles
                             Switch { 
@@ -370,24 +390,6 @@ Window {
                                 id: alertSwitch
                                 text: "Show Obstacle Alerts [O]" 
                                 checked: true
-                            }
-                            Switch { 
-                                id: reverseTofSwitch
-                                text: "Reverse ToF (Front/Back) [F]" 
-                                checked: reverseTofSensors
-                                onCheckedChanged: reverseTofSensors = checked
-                            }
-                            
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Text { text: "Speed Mode [1-4]:"; color: "white" }
-                                ComboBox {
-                                    id: speedModeCombo
-                                    Layout.fillWidth: true
-                                    model: ["Crawl (15%)", "Precision (30%)", "Normal (70%)", "Sport (100%)"]
-                                    currentIndex: 2 // Default to Normal (index 2 now)
-                                    onCurrentIndexChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setSpeedMode(currentIndex)
-                                }
                             }
 
                             RowLayout {
