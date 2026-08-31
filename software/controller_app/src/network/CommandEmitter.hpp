@@ -8,6 +8,8 @@
 
 class CommandEmitter : public QObject {
     Q_OBJECT
+    Q_PROPERTY(int currentThrottle READ currentThrottle NOTIFY currentThrottleChanged)
+    Q_PROPERTY(int currentSpeedMode READ currentSpeedMode NOTIFY currentSpeedModeChanged)
 
 public:
     explicit CommandEmitter(QObject *parent = nullptr);
@@ -19,7 +21,14 @@ public slots:
     void startEmitting(int intervalMs = 20); // 50 Hz = 20 ms
     void stopEmitting();
 
-    // Input hooks for the UI/Gamepad
+    int currentThrottle() const { return m_packet.throttleAxis; }
+    int currentSpeedMode() const { return m_packet.speedModeLimit; }
+
+signals:
+    void currentThrottleChanged();
+    void currentSpeedModeChanged();
+
+public slots:   // Input hooks for the UI/Gamepad
     void updateThrottle(int16_t throttle);
     void updateSteering(int16_t steering);
     void setAutoBrake(bool enable);

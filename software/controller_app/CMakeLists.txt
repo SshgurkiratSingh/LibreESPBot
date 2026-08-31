@@ -16,6 +16,8 @@ set(SOURCES
     src/network/DiscoveryWorker.cpp
     src/network/VideoManager.cpp
     src/mapping/RadarPointCloud.cpp
+    src/core/AppSettings.cpp
+    src/core/ScriptEngine.cpp
 )
 
 qt_add_executable(LibreESPBot ${SOURCES})
@@ -43,6 +45,8 @@ qt_add_qml_module(LibreESPBot
         qml/components/ArtificialHorizon.qml
         qml/components/HardwareInspector.qml
         qml/components/KinematicsView3D.qml
+        qml/components/AviationHud.qml
+        qml/components/ScriptPanel.qml
         qml/theme/Theme.qml
 )
 

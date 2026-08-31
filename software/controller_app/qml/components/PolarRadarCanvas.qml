@@ -14,9 +14,9 @@ Canvas {
         var maxRadius = Math.min(width, height) / 2;
         
         // Draw distance rings
-        ctx.strokeStyle = "#00E5FF";
-        ctx.lineWidth = 1;
-        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = "#00FFFF";
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.5;
         
         var ringDistances = [500, 1000, 1500, 2000]; // mm
         for (let i = 0; i < ringDistances.length; ++i) {
@@ -26,8 +26,8 @@ Canvas {
             ctx.stroke();
             
             // Draw distance label
-            ctx.fillStyle = "#00E5FF";
-            ctx.font = "10px sans-serif";
+            ctx.fillStyle = "#00FFFF";
+            ctx.font = "11px sans-serif";
             ctx.fillText(ringDistances[i] + "mm", centerX + 5, centerY - r - 5);
         }
         
