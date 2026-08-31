@@ -50,11 +50,37 @@ Rectangle {
             Layout.bottomMargin: 5
         }
 
-        Text {
-            text: "SENSOR TELEMETRY"
-            color: "white"
-            font.bold: true
-            font.pixelSize: 12
+        RowLayout {
+            Layout.fillWidth: true
+            
+            Text {
+                text: "SENSOR TELEMETRY"
+                color: "white"
+                font.bold: true
+                font.pixelSize: 12
+                Layout.fillWidth: true
+            }
+
+            Rectangle {
+                width: 10
+                height: 10
+                radius: 5
+                color: (typeof mainWindow !== "undefined" && mainWindow.isConnected) ? "#00E676" : "#FF1744"
+                
+                SequentialAnimation on opacity {
+                    running: typeof mainWindow !== "undefined" && mainWindow.isConnected
+                    loops: Animation.Infinite
+                    NumberAnimation { from: 1.0; to: 0.3; duration: 500 }
+                    NumberAnimation { from: 0.3; to: 1.0; duration: 500 }
+                }
+                
+                // When disconnected, stop animation and keep opacity at 1.0
+                onColorChanged: {
+                    if (!(typeof mainWindow !== "undefined" && mainWindow.isConnected)) {
+                        opacity = 1.0;
+                    }
+                }
+            }
         }
 
         // Telemetry Data Grid
@@ -66,56 +92,62 @@ Rectangle {
             
             Text { text: "Battery"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? (telemetryClient.batteryVoltage * mainWindow.voltageMultiplier).toFixed(1) + " V" : "---"
-                color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
+                text: telemetryClient ? (telemetryClient.batteryVoltage * mainWindow.voltageMultiplier).toFixed(1) + " V" : "---"
+                color: {
+                    if (!telemetryClient) return "white";
+                    let v = telemetryClient.batteryVoltage * mainWindow.voltageMultiplier;
+                    let limit = appSettings ? appSettings.lowBatteryWarningVolts : 11.1;
+                    return (v < limit && v > 1.0) ? "#FF1744" : "white"; // Only warn if voltage is plausible (>1.0V)
+                }
+                font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
 
             Text { text: "IMU Temp"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? telemetryClient.imuTempC.toFixed(1) + " °C" : "---"
-                color: telemetryClient.imuTempC > 60.0 ? "#FF1744" : "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
+                text: telemetryClient ? telemetryClient.imuTempC.toFixed(1) + " °C" : "---"
+                color: telemetryClient && telemetryClient.imuTempC > 60.0 ? "#FF1744" : "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
             
             Text { text: "Pitch"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? telemetryClient.pitch.toFixed(1) + "°" : "---"
+                text: telemetryClient ? (telemetryClient.pitch - (typeof appSettings !== "undefined" ? appSettings.pitchOffset : 0)).toFixed(1) + "°" : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
             
             Text { text: "Roll"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? telemetryClient.roll.toFixed(1) + "°" : "---"
+                text: telemetryClient ? (telemetryClient.roll - (typeof appSettings !== "undefined" ? appSettings.rollOffset : 0)).toFixed(1) + "°" : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
 
             Text { text: "Yaw (Gyro)"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? telemetryClient.yaw.toFixed(1) + "°" : "---"
+                text: telemetryClient ? telemetryClient.yaw.toFixed(1) + "°" : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
 
             Text { text: "Compass HDG"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? telemetryClient.headingCompassDeg.toFixed(1) + "°" : "---"
+                text: telemetryClient ? telemetryClient.headingCompassDeg.toFixed(1) + "°" : "---"
                 color: "#00E676"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
 
             Text { text: reverseTofSensors ? "ToF L (Back)" : "ToF L (Front)"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? (telemetryClient.tof1DistMm === 0 ? "OOR" : telemetryClient.tof1DistMm + " mm") : "---"
+                text: telemetryClient ? (telemetryClient.tof1DistMm === 0 ? "OOR" : telemetryClient.tof1DistMm + " mm") : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }
 
             Text { text: reverseTofSensors ? "ToF R (Back)" : "ToF R (Front)"; color: "#888"; font.pixelSize: 12; Layout.fillWidth: true }
             Text { 
-                text: typeof telemetryClient !== "undefined" ? (telemetryClient.tof2DistMm === 0 ? "OOR" : telemetryClient.tof2DistMm + " mm") : "---"
+                text: telemetryClient ? (telemetryClient.tof2DistMm === 0 ? "OOR" : telemetryClient.tof2DistMm + " mm") : "---"
                 color: "white"; font.pixelSize: 13; font.family: "Monospace"; font.bold: true
                 horizontalAlignment: Text.AlignRight; Layout.alignment: Qt.AlignRight
             }

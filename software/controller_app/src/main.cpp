@@ -7,6 +7,8 @@
 #include "network/DiscoveryWorker.hpp"
 #include "network/VideoManager.hpp"
 #include "mapping/RadarPointCloud.hpp"
+#include "core/AppSettings.hpp"
+#include "core/ScriptEngine.hpp"
 
 #include <QQuickStyle>
 
@@ -65,6 +67,8 @@ int main(int argc, char *argv[])
     DiscoveryWorker discoveryWorker;
     VideoManager videoManager;
     RadarPointCloud radarCloud;
+    AppSettings appSettings;
+    ScriptEngine scriptEngine(&commandEmitter);
 
     // Expose to QML
     engine.rootContext()->setContextProperty("telemetryClient", &telemetryClient);
@@ -72,6 +76,8 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("discoveryWorker", &discoveryWorker);
     engine.rootContext()->setContextProperty("videoManager", &videoManager);
     engine.rootContext()->setContextProperty("radarCloud", &radarCloud);
+    engine.rootContext()->setContextProperty("appSettings", &appSettings);
+    engine.rootContext()->setContextProperty("scriptEngine", &scriptEngine);
 
     // Start networking layers
     discoveryWorker.startDiscovery();

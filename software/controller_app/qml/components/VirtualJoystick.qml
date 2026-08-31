@@ -40,7 +40,20 @@ Item {
             width: root.width / 2.5
             height: root.height / 2.5
             radius: width / 2
+            
+            // Fake 3D gradient effect using a solid color with an inner border overlay
             color: "#00E5FF"
+            border.color: "#0088AA"
+            border.width: 4
+            
+            Rectangle {
+                anchors.centerIn: parent
+                width: parent.width * 0.7
+                height: parent.height * 0.7
+                radius: width / 2
+                color: "#18FFFF"
+                opacity: 0.8
+            }
             
             x: (base.width - width) / 2
             y: (base.height - height) / 2
