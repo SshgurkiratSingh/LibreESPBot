@@ -316,6 +316,11 @@ Window {
                         text: "📝 Scripting"
                         onClicked: scriptPanelOverlay.visible = !scriptPanelOverlay.visible
                     }
+
+                    Button {
+                        text: "🛠 Execute Tool"
+                        onClicked: executeToolPanelOverlay.visible = !executeToolPanelOverlay.visible
+                    }
                 }
             }
 
@@ -812,5 +817,15 @@ Window {
         height: Math.min(parent.height * 0.8, 500)
         visible: false
         z: 100 // Ensure it's above other elements
+    }
+
+    // Floating Execute Tool Panel Overlay
+    ExecuteToolPanel {
+        id: executeToolPanelOverlay
+        anchors.centerIn: parent
+        width: Math.min(parent.width * 0.8, 500)
+        height: Math.min(parent.height * 0.8, 400)
+        visible: false
+        z: 101 // Above others
     }
 }

@@ -2,7 +2,7 @@
 
 AppSettings::AppSettings(QObject *parent) 
     : QObject(parent), 
-      m_settings(QCoreApplication::applicationDirPath() + "/config.ini", QSettings::IniFormat) 
+      m_settings(QSettings::IniFormat, QSettings::UserScope, "LibreESP", "LibreESPBot") 
 {
     // Load existing settings or set defaults
     m_radarPointLifetimeMs = m_settings.value("Radar/PointLifetimeMs", 5000).toInt();

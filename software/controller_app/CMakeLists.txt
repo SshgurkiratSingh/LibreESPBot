@@ -18,6 +18,7 @@ set(SOURCES
     src/mapping/RadarPointCloud.cpp
     src/core/AppSettings.cpp
     src/core/ScriptEngine.cpp
+    src/tools/PanoramaBuilder.cpp
 )
 
 qt_add_executable(LibreESPBot ${SOURCES})
@@ -47,6 +48,7 @@ qt_add_qml_module(LibreESPBot
         qml/components/KinematicsView3D.qml
         qml/components/AviationHud.qml
         qml/components/ScriptPanel.qml
+        qml/components/ExecuteToolPanel.qml
         qml/theme/Theme.qml
 )
 

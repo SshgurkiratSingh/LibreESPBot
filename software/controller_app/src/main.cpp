@@ -9,6 +9,7 @@
 #include "mapping/RadarPointCloud.hpp"
 #include "core/AppSettings.hpp"
 #include "core/ScriptEngine.hpp"
+#include "tools/PanoramaBuilder.hpp"
 
 #include <QQuickStyle>
 
@@ -23,6 +24,9 @@ int main(int argc, char *argv[])
 {
     QQuickStyle::setStyle("Material");
     QGuiApplication app(argc, argv);
+    app.setOrganizationName("LibreESP");
+    app.setOrganizationDomain("libreesp.org");
+    app.setApplicationName("LibreESPBot");
 
     QQmlApplicationEngine engine;
 
@@ -69,6 +73,7 @@ int main(int argc, char *argv[])
     RadarPointCloud radarCloud;
     AppSettings appSettings;
     ScriptEngine scriptEngine(&commandEmitter);
+    PanoramaBuilder panoramaBuilder(&commandEmitter, &telemetryClient, &videoManager);
 
     // Expose to QML
     engine.rootContext()->setContextProperty("telemetryClient", &telemetryClient);
@@ -78,6 +83,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("radarCloud", &radarCloud);
     engine.rootContext()->setContextProperty("appSettings", &appSettings);
     engine.rootContext()->setContextProperty("scriptEngine", &scriptEngine);
+    engine.rootContext()->setContextProperty("panoramaBuilder", &panoramaBuilder);
 
     // Start networking layers
     discoveryWorker.startDiscovery();
