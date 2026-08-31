@@ -47,6 +47,17 @@ Window {
     onKeyThrottleChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
     onKeySteeringChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
 
+    onActiveChanged: {
+        if (!active) {
+            // Safety: release all keys if window loses focus
+            keyThrottle = 0;
+            keySteering = 0;
+        } else {
+            // Re-gain focus to allow keyboard events immediately
+            if (typeof rootItem !== "undefined") rootItem.forceActiveFocus();
+        }
+    }
+
     property var radarDataMap: ({})
     property var currentRadarPoints: []
 
