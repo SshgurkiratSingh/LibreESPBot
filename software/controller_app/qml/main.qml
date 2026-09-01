@@ -817,6 +817,12 @@ Window {
         height: Math.min(parent.height * 0.8, 500)
         visible: false
         z: 100 // Ensure it's above other elements
+        
+        onVisibleChanged: {
+            if (!visible && typeof rootItem !== "undefined") {
+                rootItem.forceActiveFocus();
+            }
+        }
     }
 
     // Floating Execute Tool Panel Overlay
@@ -827,5 +833,11 @@ Window {
         height: Math.min(parent.height * 0.8, 400)
         visible: false
         z: 101 // Above others
+        
+        onVisibleChanged: {
+            if (!visible && typeof rootItem !== "undefined") {
+                rootItem.forceActiveFocus();
+            }
+        }
     }
 }

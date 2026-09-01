@@ -159,6 +159,97 @@ Rectangle {
             }
         }
         
+        // Tool 2: Turning Calibrator
+        Rectangle {
+            Layout.fillWidth: true
+            color: "#1e1e1e"
+            radius: 8
+            border.color: "#333"
+            border.width: 1
+            implicitHeight: tool2Col.height + 20
+            
+            ColumnLayout {
+                id: tool2Col
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.margins: 10
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 10
+                
+                Text {
+                    text: "Turn Throttle Calibrator"
+                    color: "#00E5FF"
+                    font.bold: true
+                    font.pixelSize: 16
+                }
+                
+                Text {
+                    Layout.fillWidth: true
+                    color: "#aaa"
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                    text: "Finds the lowest throttle required to rotate the rover on its axis. The optimal throttle will automatically be applied to the Panoramic Shot macro."
+                }
+                
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 15
+                    
+                    Button {
+                        text: (typeof turningCalibrator !== "undefined" && turningCalibrator.isRunning) ? "CALIBRATING..." : "START CALIBRATION"
+                        enabled: typeof turningCalibrator !== "undefined" && !turningCalibrator.isRunning
+                        Layout.fillWidth: true
+                        onClicked: {
+                            if (typeof turningCalibrator !== "undefined") {
+                                turningCalibrator.startCalibration();
+                            }
+                        }
+                        background: Rectangle {
+                            color: parent.enabled ? "#2962FF" : "#555"
+                            radius: 5
+                        }
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                    
+                    Button {
+                        text: "CANCEL"
+                        enabled: typeof turningCalibrator !== "undefined" && turningCalibrator.isRunning
+                        Layout.fillWidth: true
+                        onClicked: {
+                            if (typeof turningCalibrator !== "undefined") {
+                                turningCalibrator.cancelCalibration();
+                            }
+                        }
+                        background: Rectangle {
+                            color: parent.enabled ? "#D50000" : "#555"
+                            radius: 5
+                        }
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+                
+                Text {
+                    Layout.fillWidth: true
+                    color: (typeof turningCalibrator !== "undefined" && turningCalibrator.optimalThrottle > 0 && !turningCalibrator.isRunning) ? "#00FF00" : "#FF9800"
+                    font.pixelSize: 12
+                    text: typeof turningCalibrator !== "undefined" ? turningCalibrator.statusMessage : ""
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+        
         Item { Layout.fillHeight: true } // spacer
         
         Connections {
@@ -168,6 +259,16 @@ Rectangle {
             }
             function onPanoramaFinished(path) {
                 console.log("Panorama generated at:", path);
+            }
+        }
+        
+        Connections {
+            target: typeof turningCalibrator !== "undefined" ? turningCalibrator : null
+            function onCalibrationFinished(throttleValue) {
+                if (typeof panoramaBuilder !== "undefined") {
+                    panoramaBuilder.turnThrottle = throttleValue;
+                    console.log("Set PanoramaBuilder turn throttle to: ", throttleValue);
+                }
             }
         }
     }

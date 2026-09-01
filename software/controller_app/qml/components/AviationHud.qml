@@ -111,13 +111,13 @@ Item {
     // 3. HEADING TAPE (Top)
     Item {
         anchors.top: parent.top
-        anchors.topMargin: 20
+        anchors.topMargin: 70
         anchors.horizontalCenter: parent.horizontalCenter
         width: 300
         height: 40
         clip: true
 
-        Rectangle { anchors.fill: parent; color: "#44000000"; border.color: root.hudColor; border.width: 1 }
+        Rectangle { anchors.fill: parent; color: "#AA000000"; border.color: root.hudColor; border.width: 1 }
         
         Rectangle {
             anchors.centerIn: parent; width: 2; height: 40; color: root.hudColor

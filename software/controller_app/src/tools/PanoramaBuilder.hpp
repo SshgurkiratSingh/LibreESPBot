@@ -15,6 +15,7 @@ class PanoramaBuilder : public QObject {
     Q_PROPERTY(int totalCaptured READ totalCaptured NOTIFY totalCapturedChanged)
     Q_PROPERTY(QString lastResultPath READ lastResultPath NOTIFY lastResultPathChanged)
     Q_PROPERTY(int stepDegrees READ stepDegrees WRITE setStepDegrees NOTIFY stepDegreesChanged)
+    Q_PROPERTY(int turnThrottle READ turnThrottle WRITE setTurnThrottle NOTIFY turnThrottleChanged)
 
 public:
     explicit PanoramaBuilder(CommandEmitter* emitter, TelemetryClient* telemetry, VideoManager* video, QObject *parent = nullptr);
@@ -25,6 +26,8 @@ public:
     QString lastResultPath() const { return m_lastResultPath; }
     int stepDegrees() const { return m_stepDegrees; }
     void setStepDegrees(int deg);
+    int turnThrottle() const { return m_turnThrottle; }
+    void setTurnThrottle(int t);
 
     Q_INVOKABLE void startPanorama();
     Q_INVOKABLE void cancelPanorama();
@@ -35,6 +38,7 @@ signals:
     void totalCapturedChanged();
     void lastResultPathChanged();
     void stepDegreesChanged();
+    void turnThrottleChanged();
     void panoramaFinished(const QString& path);
     void panoramaError(const QString& msg);
 
@@ -69,6 +73,7 @@ private:
     
     int m_stepDegrees;
     int m_targetTotalShots;
+    int m_turnThrottle;
     
     float m_initialYaw;
     float m_targetYaw;

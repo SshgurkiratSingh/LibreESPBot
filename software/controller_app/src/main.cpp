@@ -10,6 +10,7 @@
 #include "core/AppSettings.hpp"
 #include "core/ScriptEngine.hpp"
 #include "tools/PanoramaBuilder.hpp"
+#include "tools/TurningCalibrator.hpp"
 
 #include <QQuickStyle>
 
@@ -74,6 +75,7 @@ int main(int argc, char *argv[])
     AppSettings appSettings;
     ScriptEngine scriptEngine(&commandEmitter);
     PanoramaBuilder panoramaBuilder(&commandEmitter, &telemetryClient, &videoManager);
+    TurningCalibrator turningCalibrator(&commandEmitter, &telemetryClient);
 
     // Expose to QML
     engine.rootContext()->setContextProperty("telemetryClient", &telemetryClient);
@@ -84,6 +86,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("appSettings", &appSettings);
     engine.rootContext()->setContextProperty("scriptEngine", &scriptEngine);
     engine.rootContext()->setContextProperty("panoramaBuilder", &panoramaBuilder);
+    engine.rootContext()->setContextProperty("turningCalibrator", &turningCalibrator);
 
     // Start networking layers
     discoveryWorker.startDiscovery();

@@ -16,6 +16,7 @@ PanoramaBuilder::PanoramaBuilder(CommandEmitter* emitter, TelemetryClient* telem
     , m_progressPercent(0)
     , m_stepDegrees(30)
     , m_targetTotalShots(12) // 360 / 30
+    , m_turnThrottle(400)
     , m_initialYaw(0)
     , m_targetYaw(0)
     , m_totalTurned(0)
@@ -32,6 +33,13 @@ void PanoramaBuilder::setStepDegrees(int deg) {
     if (m_stepDegrees != deg && deg > 0) {
         m_stepDegrees = deg;
         emit stepDegreesChanged();
+    }
+}
+
+void PanoramaBuilder::setTurnThrottle(int t) {
+    if (m_turnThrottle != t) {
+        m_turnThrottle = t;
+        emit turnThrottleChanged();
     }
 }
 
@@ -85,7 +93,7 @@ void PanoramaBuilder::executeNextTurn() {
     // Command the bot to rotate in place (pivot right)
     // Positive steering is right. We need throttle for the bot to actually move and turn.
     m_emitter->updateSteering(512); // 50% of 1023
-    m_emitter->updateThrottle(400); // ~40% throttle to ensure movement
+    m_emitter->updateThrottle(m_turnThrottle);
 }
 
 float PanoramaBuilder::normalizeAngle(float angle) {
@@ -126,6 +134,9 @@ void PanoramaBuilder::stabilizeAndCapture() {
 
     QString b64 = m_video->currentFrameBase64();
     if (!b64.isEmpty()) {
+        if (b64.startsWith("data:image/jpeg;base64,")) {
+            b64 = b64.mid(23);
+        }
         QByteArray ba = QByteArray::fromBase64(b64.toUtf8());
         QImage img;
         if (img.loadFromData(ba)) {
@@ -133,6 +144,8 @@ void PanoramaBuilder::stabilizeAndCapture() {
             emit totalCapturedChanged();
             
             setProgress((m_capturedImages.size() * 100) / m_targetTotalShots);
+        } else {
+            qWarning() << "Failed to decode image from base64 data.";
         }
     } else {
         qWarning() << "Failed to capture frame for panorama";

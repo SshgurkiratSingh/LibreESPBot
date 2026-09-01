@@ -19,6 +19,7 @@ set(SOURCES
     src/core/AppSettings.cpp
     src/core/ScriptEngine.cpp
     src/tools/PanoramaBuilder.cpp
+    src/tools/TurningCalibrator.cpp
 )
 
 qt_add_executable(LibreESPBot ${SOURCES})
