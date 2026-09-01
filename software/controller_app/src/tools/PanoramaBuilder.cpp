@@ -19,6 +19,7 @@ PanoramaBuilder::PanoramaBuilder(CommandEmitter* emitter, TelemetryClient* telem
     , m_turnThrottle(400)
     , m_initialYaw(0)
     , m_targetYaw(0)
+    , m_lastYaw(0)
     , m_totalTurned(0)
 {
     m_stabilizeTimer.setSingleShot(true);
@@ -52,6 +53,7 @@ void PanoramaBuilder::startPanorama() {
     m_targetTotalShots = 360 / qMax(5, m_stepDegrees);
     m_initialYaw = m_telemetry->yaw();
     m_targetYaw = m_initialYaw; // We will use m_targetYaw to store the step's initial yaw
+    m_lastYaw = m_initialYaw;
     m_totalTurned = 0;
     
     setRunning(true);
@@ -80,14 +82,15 @@ void PanoramaBuilder::cancelPanorama() {
 void PanoramaBuilder::executeNextTurn() {
     if (!m_isRunning) return;
 
-    if (m_capturedImages.size() >= m_targetTotalShots) {
-        // We have a full 360 view
+    if (m_capturedImages.size() >= m_targetTotalShots || m_totalTurned >= 350.0f) {
+        // We have a full 360 view (or have rotated 360 degrees)
         stitchImages();
         return;
     }
 
     // Record the starting yaw for this turn step
     m_targetYaw = m_telemetry->yaw();
+    m_lastYaw = m_targetYaw;
     
     m_state = ROTATING;
     
@@ -115,12 +118,15 @@ void PanoramaBuilder::onTelemetryUpdated() {
 
     float currentYaw = m_telemetry->yaw();
     
+    float delta = angleDifference(currentYaw, m_lastYaw);
+    m_lastYaw = currentYaw;
+    m_totalTurned += qAbs(delta);
+
     // Calculate how many degrees we have turned from the start of this step
     float turned = qAbs(angleDifference(currentYaw, m_targetYaw));
 
-    // If we have turned at least the step degrees, stop.
-    // This is robust against overshooting, left/right polarity, and 360 wrap-arounds.
-    if (turned >= (float)m_stepDegrees) {
+    // If we have turned at least the step degrees, or if we have completed a full 360 degree rotation, stop.
+    if (turned >= (float)m_stepDegrees || m_totalTurned >= 350.0f) {
         // Stop turning
         m_emitter->updateSteering(0);
         m_state = STABILIZING;

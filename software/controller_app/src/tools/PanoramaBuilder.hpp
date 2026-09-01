@@ -77,6 +77,7 @@ private:
     
     float m_initialYaw;
     float m_targetYaw;
+    float m_lastYaw;
     float m_totalTurned;
     
     QList<QImage> m_capturedImages;
