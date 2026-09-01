@@ -51,6 +51,7 @@ void PanoramaBuilder::startPanorama() {
 
     m_targetTotalShots = 360 / qMax(5, m_stepDegrees);
     m_initialYaw = m_telemetry->yaw();
+    m_targetYaw = m_initialYaw; // We will use m_targetYaw to store the step's initial yaw
     m_totalTurned = 0;
     
     setRunning(true);
@@ -85,8 +86,8 @@ void PanoramaBuilder::executeNextTurn() {
         return;
     }
 
-    // Set new target yaw (we want to turn 'stepDegrees' right)
-    m_targetYaw = normalizeAngle(m_telemetry->yaw() + m_stepDegrees);
+    // Record the starting yaw for this turn step
+    m_targetYaw = m_telemetry->yaw();
     
     m_state = ROTATING;
     
@@ -114,12 +115,12 @@ void PanoramaBuilder::onTelemetryUpdated() {
 
     float currentYaw = m_telemetry->yaw();
     
-    // We are rotating right, so we want the diff to cross 0
-    float diff = angleDifference(m_targetYaw, currentYaw);
+    // Calculate how many degrees we have turned from the start of this step
+    float turned = qAbs(angleDifference(currentYaw, m_targetYaw));
 
-    // If we're within 5 degrees of target, stop.
-    // Or if diff becomes negative (we overshot, but within a reasonable margin to avoid noise triggers)
-    if (qAbs(diff) <= 5.0f || (diff < 0.0f && diff > -45.0f)) {
+    // If we have turned at least the step degrees, stop.
+    // This is robust against overshooting, left/right polarity, and 360 wrap-arounds.
+    if (turned >= (float)m_stepDegrees) {
         // Stop turning
         m_emitter->updateSteering(0);
         m_state = STABILIZING;
