@@ -83,10 +83,9 @@ void PanoramaBuilder::executeNextTurn() {
     m_state = ROTATING;
     
     // Command the bot to rotate in place (pivot right)
-    // Positive steering is right. We might need a bit of throttle if the bot doesn't pivot purely on steering.
-    // Assuming 50% steering right is enough to initiate a pivot.
+    // Positive steering is right. We need throttle for the bot to actually move and turn.
     m_emitter->updateSteering(512); // 50% of 1023
-    m_emitter->updateThrottle(0);
+    m_emitter->updateThrottle(400); // ~40% throttle to ensure movement
 }
 
 float PanoramaBuilder::normalizeAngle(float angle) {
@@ -110,9 +109,9 @@ void PanoramaBuilder::onTelemetryUpdated() {
     // We are rotating right, so we want the diff to cross 0
     float diff = angleDifference(m_targetYaw, currentYaw);
 
-    // If we're within 2 degrees of target, stop.
-    // Or if diff becomes negative (we overshot)
-    if (qAbs(diff) < 2.0f || diff < 0.0f) {
+    // If we're within 5 degrees of target, stop.
+    // Or if diff becomes negative (we overshot, but within a reasonable margin to avoid noise triggers)
+    if (qAbs(diff) <= 5.0f || (diff < 0.0f && diff > -45.0f)) {
         // Stop turning
         m_emitter->updateSteering(0);
         m_state = STABILIZING;
