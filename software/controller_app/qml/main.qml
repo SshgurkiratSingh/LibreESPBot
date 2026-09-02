@@ -466,6 +466,12 @@ Window {
                                         }
                                     }
                                 }
+                                Button {
+                                    text: "Color"
+                                    visible: headlightCombo.currentIndex === 3 || headlightCombo.currentIndex === 6
+                                    onClicked: customColorDialog.open()
+                                    Layout.preferredWidth: 70
+                                }
                             }
                         }
                     } // End ScrollView
@@ -506,7 +512,7 @@ Window {
         property int currentPattern: 255 // Default all ones
         
         ColumnLayout {
-            anchors.fill: parent
+            width: parent.width
             spacing: 15
 
             Text {
@@ -531,12 +537,6 @@ Window {
                         }
                     }
                 }
-            }
-            
-            Button {
-                text: "Change Color"
-                Layout.alignment: Qt.AlignHCenter
-                onClicked: customColorDialog.open()
             }
         }
 
