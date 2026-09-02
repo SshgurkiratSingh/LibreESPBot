@@ -492,11 +492,6 @@ Window {
                 )
             }
         }
-        onRejected: {
-            if (headlightCombo.currentIndex === 3) {
-                headlightCombo.currentIndex = 0
-            }
-        }
     }
 
     Dialog {
@@ -543,11 +538,6 @@ Window {
         onAccepted: {
             if (typeof commandEmitter !== "undefined") {
                 commandEmitter.setCustomLedPattern(currentPattern)
-            }
-        }
-        onRejected: {
-            if (headlightCombo.currentIndex === 6) {
-                headlightCombo.currentIndex = 0
             }
         }
     }
