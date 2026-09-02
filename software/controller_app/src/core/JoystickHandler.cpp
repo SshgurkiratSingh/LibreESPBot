@@ -2,12 +2,15 @@
 #include <QDebug>
 #include <QCoreApplication>
 #include <QSettings>
+#include <QDir>
+#include <QFile>
+
+#ifdef Q_OS_LINUX
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/joystick.h>
 #include <sys/ioctl.h>
-#include <QDir>
-#include <QFile>
+#endif
 
 class JoystickWorker : public QObject {
     Q_OBJECT
@@ -18,6 +21,7 @@ public:
 public slots:
     void start() {
         m_running = true;
+#ifdef Q_OS_LINUX
         while (m_running) {
             if (m_fd < 0) {
                 // Try to find a joystick
@@ -63,6 +67,12 @@ public slots:
             ::close(m_fd);
             m_fd = -1;
         }
+#else
+        // Dummy implementation for Windows
+        while (m_running) {
+            QThread::msleep(500);
+        }
+#endif
     }
 
     void stop() {
