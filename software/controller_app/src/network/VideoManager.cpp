@@ -83,7 +83,7 @@ void VideoManager::onFrameDownloaded() {
         if (isRec) m_frameCount++; // Increment on main thread safely
         
         // Offload heavy operations (Base64 encoding & Disk IO) to a background thread pool
-        QtConcurrent::run([this, jpegData, isRec, recDir, frameNum]() {
+        (void)QtConcurrent::run([this, jpegData, isRec, recDir, frameNum]() {
             // Encode Base64
             QString base64 = "data:image/jpeg;base64," + QString(jpegData.toBase64());
             
