@@ -98,27 +98,35 @@ Rectangle {
         }
     }
 
-    Column {
+    Rectangle {
         anchors.centerIn: parent
-        width: parent.width * 0.9
-        spacing: 8
+        width: offlineColumn.implicitWidth + 40
+        height: offlineColumn.implicitHeight + 30
+        color: "#AA000000"
+        radius: 10
         visible: !root.isConnected
 
-        Text {
-            width: parent.width
-            text: "VIDEO STREAM OFFLINE" 
-            color: "#FF1744"
-            font.pixelSize: 18
-            font.bold: true
-            horizontalAlignment: Text.AlignHCenter
-        }
-        
-        Text {
-            width: parent.width
-            text: "(Waiting for ESP32-CAM mDNS Discovery or Manual IP)" 
-            color: "#FF5252"
-            font.pixelSize: 14
-            horizontalAlignment: Text.AlignHCenter
+        Column {
+            id: offlineColumn
+            anchors.centerIn: parent
+            spacing: 8
+
+            Text {
+                text: "VIDEO STREAM OFFLINE" 
+                color: "#FF1744"
+                font.pixelSize: 18
+                font.bold: true
+                horizontalAlignment: Text.AlignHCenter
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            
+            Text {
+                text: "(Waiting for ESP32-CAM mDNS Discovery or Manual IP)" 
+                color: "#FF5252"
+                font.pixelSize: 14
+                horizontalAlignment: Text.AlignHCenter
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
         }
     }
 }
