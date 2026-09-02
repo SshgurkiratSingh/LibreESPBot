@@ -496,7 +496,7 @@ Window {
     Dialog {
         id: customPatternDialog
         title: "Define Custom LED Sequence"
-        width: 350
+        width: 450
         height: 250
         x: (parent.width - width) / 2
         y: (parent.height - height) / 2
@@ -629,7 +629,7 @@ Window {
                             }
                         }
                         
-                        Text { text: "Camera Max FPS"; color: "gray"; font.pixelSize: 12 }
+                        Text { text: "Camera Max FPS: " + Math.round(cameraFpsSlider.value); color: "gray"; font.pixelSize: 12 }
                         Slider {
                             id: cameraFpsSlider
                             Layout.fillWidth: true
