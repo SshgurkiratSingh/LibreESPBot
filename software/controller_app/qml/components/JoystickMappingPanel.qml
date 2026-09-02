@@ -95,13 +95,16 @@ Dialog {
                     model: ["Throttle", "Steering", "Brake", "Reverse", "Radar", "SpeedMode"]
                     RowLayout {
                         Layout.fillWidth: true
+                        
                         Text {
                             text: modelData
                             color: "white"
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: 100
+                            Layout.alignment: Qt.AlignVCenter
                         }
                         
                         Button {
+                            Layout.fillWidth: true
                             text: currentMapping[modelData] ? currentMapping[modelData] : "Unmapped"
                             onClicked: {
                                 listeningAction = modelData;
