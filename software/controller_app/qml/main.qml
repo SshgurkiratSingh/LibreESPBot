@@ -117,6 +117,29 @@ Window {
         }
     }
 
+    Connections {
+        target: typeof joystickHandler !== "undefined" ? joystickHandler : null
+        
+        function onMappedAxisChanged(actionName, value) {
+            if (actionName === "Throttle") {
+                keyThrottle = -value;
+            } else if (actionName === "Steering") {
+                keySteering = value;
+            }
+        }
+        
+        function onMappedButtonChanged(actionName, pressed) {
+            if (pressed) {
+                if (actionName === "Brake") aebSwitch.checked = !aebSwitch.checked;
+                else if (actionName === "Radar") radarSwitch.checked = !radarSwitch.checked;
+                else if (actionName === "SpeedMode") speedModeCombo.currentIndex = (speedModeCombo.currentIndex + 1) % 4;
+                else if (actionName === "Reverse") keyThrottle = -1.0;
+            } else {
+                if (actionName === "Reverse") keyThrottle = 0.0;
+            }
+        }
+    }
+
     Item {
         id: rootItem
         anchors.fill: parent
@@ -745,6 +768,15 @@ Window {
                             }
                         }
 
+                        Rectangle { Layout.fillWidth: true; height: 1; color: "#555" }
+                        Text { text: "Input Devices"; color: "white"; font.bold: true }
+
+                        Button {
+                            text: "Gamepad Mapping Settings"
+                            Layout.fillWidth: true
+                            onClicked: joystickDialog.open()
+                        }
+
                         Item { Layout.fillHeight: true } // spacer
                     }
                 }
@@ -855,5 +887,10 @@ Window {
                 rootItem.forceActiveFocus();
             }
         }
+    }
+
+    // Gamepad Mapping Dialog
+    JoystickMappingPanel {
+        id: joystickDialog
     }
 }

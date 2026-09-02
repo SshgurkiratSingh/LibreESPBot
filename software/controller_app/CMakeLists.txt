@@ -18,6 +18,7 @@ set(SOURCES
     src/mapping/RadarPointCloud.cpp
     src/core/AppSettings.cpp
     src/core/ScriptEngine.cpp
+    src/core/JoystickHandler.cpp
     src/tools/PanoramaBuilder.cpp
     src/tools/TurningCalibrator.cpp
 )
@@ -46,6 +47,7 @@ qt_add_qml_module(LibreESPBot
         qml/components/VideoViewport.qml
         qml/components/ArtificialHorizon.qml
         qml/components/HardwareInspector.qml
+        qml/components/JoystickMappingPanel.qml
         qml/components/KinematicsView3D.qml
         qml/components/AviationHud.qml
         qml/components/ScriptPanel.qml
