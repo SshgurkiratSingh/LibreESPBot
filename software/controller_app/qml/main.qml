@@ -160,7 +160,11 @@ Window {
             else if (event.key === Qt.Key_R) radarSwitch.checked = !radarSwitch.checked;
             else if (event.key === Qt.Key_O) alertSwitch.checked = !alertSwitch.checked;
             else if (event.key === Qt.Key_N) noLagSwitch.checked = !noLagSwitch.checked;
-            else if (event.key === Qt.Key_F) reverseTofSwitch.checked = !reverseTofSwitch.checked;
+            else if (event.key === Qt.Key_F) {
+                if (typeof appSettings !== "undefined") {
+                    appSettings.invertTof = !appSettings.invertTof;
+                }
+            }
             else if (event.key === Qt.Key_K) enable3dKinematics = !enable3dKinematics;
             else if (event.key === Qt.Key_1) speedModeCombo.currentIndex = 0;
             else if (event.key === Qt.Key_2) speedModeCombo.currentIndex = 1;
@@ -220,10 +224,38 @@ Window {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
+                        rightPadding: 15
                         
                         HardwareInspector {
                             id: hwInspector
-                            width: parent.width
+                            width: parent.width - 15
+                        }
+                    }
+
+                    // App-level Navigation/Tools
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Button {
+                            Layout.fillWidth: true
+                            text: "⚙ Settings"
+                            font.pixelSize: 12
+                            onClicked: settingsDrawer.open()
+                        }
+                        
+                        Button {
+                            Layout.fillWidth: true
+                            text: "📝 Scripting"
+                            font.pixelSize: 12
+                            onClicked: scriptPanelOverlay.visible = !scriptPanelOverlay.visible
+                        }
+
+                        Button {
+                            Layout.fillWidth: true
+                            text: "🛠 Tools"
+                            font.pixelSize: 12
+                            onClicked: executeToolPanelOverlay.visible = !executeToolPanelOverlay.visible
                         }
                     }
                 }
@@ -323,28 +355,7 @@ Window {
                     }
                 }
                 
-                // Top-left overlay buttons
-                Row {
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.margins: 20
-                    spacing: 10
-                    
-                    Button {
-                        text: "⚙ Settings"
-                        onClicked: settingsDrawer.open()
-                    }
-                    
-                    Button {
-                        text: "📝 Scripting"
-                        onClicked: scriptPanelOverlay.visible = !scriptPanelOverlay.visible
-                    }
-
-                    Button {
-                        text: "🛠 Execute Tool"
-                        onClicked: executeToolPanelOverlay.visible = !executeToolPanelOverlay.visible
-                    }
-                }
+                // Buttons moved to left sidebar
             }
 
             // Right Sidebar: Controls
@@ -396,64 +407,71 @@ Window {
                         Layout.fillHeight: true
                         clip: true
                         contentWidth: availableWidth
+                        
+                        // Add some right margin to the viewport to prevent scrollbar overlap
+                        rightPadding: 15 
 
                         ColumnLayout {
                             width: parent.width
-                            spacing: 10
+                            spacing: 8
+
+                            // --- DRIVE SETTINGS ---
+                            Text { text: "DRIVE SETTINGS"; color: "#B0B0B0"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1; Layout.topMargin: 5 }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: "#333333" }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "Speed Mode [1-4]:"; color: "white" }
+                                Text { text: "Speed Mode"; color: "#E0E0E0"; font.pixelSize: 13; Layout.fillWidth: true }
                                 ComboBox {
                                     id: speedModeCombo
-                                    Layout.fillWidth: true
-                                    model: ["Crawl (15%)", "Precision (30%)", "Normal (70%)", "Sport (100%)"]
-                                    currentIndex: 2 // Default to Normal (index 2 now)
+                                    Layout.preferredWidth: 140
+                                    model: ["Crawl", "Precision", "Normal", "Sport"]
+                                    currentIndex: 2 // Default to Normal
                                     onCurrentIndexChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setSpeedMode(currentIndex)
                                 }
                             }
-                            
-                            Switch { 
-                                id: reverseTofSwitch
-                                text: "Reverse ToF (Front/Back) [F]" 
-                                checked: reverseTofSensors
-                                onCheckedChanged: reverseTofSensors = checked
-                            }
 
-                            
-                            // Automations Drawer Toggles
-                            Switch { 
-                                id: noLagSwitch
-                                text: "NoLag Hard Realtime [N]"
-                                onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setNoLagMode(checked)
-                            }
-                            Switch { 
-                                id: aebSwitch
-                                text: "Auto Emergency Brake [B]"
-                                onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setAutoBrake(checked)
-                            }
-                            Switch { 
-                                id: apfSwitch
-                                text: "APF Collision Avoidance [V]" 
-                                onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setApfAvoidance(checked)
-                            }
-                            Switch { 
-                                id: radarSwitch
-                                text: "Radar Sweep [R]" 
-                                onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setRadarSweep(checked)
-                            }
-                            Switch { 
-                                id: alertSwitch
-                                text: "Show Obstacle Alerts [O]" 
-                                checked: true
-                            }
+                            // --- AUTOMATION & SAFETY ---
+                            Item { Layout.fillWidth: true; height: 10 }
+                            Text { text: "AUTOMATION & SAFETY"; color: "#B0B0B0"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1 }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: "#333333" }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "Headlights [H/L]:"; color: "white" }
+                                Text { text: "Auto Emergency Brake"; color: "#E0E0E0"; font.pixelSize: 13; Layout.fillWidth: true }
+                                Switch { 
+                                    id: aebSwitch
+                                    onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setAutoBrake(checked)
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text { text: "APF Collision Avoidance"; color: "#E0E0E0"; font.pixelSize: 13; Layout.fillWidth: true }
+                                Switch { 
+                                    id: apfSwitch
+                                    onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setApfAvoidance(checked)
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text { text: "Radar Sweep"; color: "#E0E0E0"; font.pixelSize: 13; Layout.fillWidth: true }
+                                Switch { 
+                                    id: radarSwitch
+                                    onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setRadarSweep(checked)
+                                }
+                            }
+
+                            // --- EXTERNAL LIGHTING ---
+                            Item { Layout.fillWidth: true; height: 10 }
+                            Text { text: "EXTERNAL LIGHTING"; color: "#B0B0B0"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1 }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: "#333333" }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text { text: "Headlights"; color: "#E0E0E0"; font.pixelSize: 13; Layout.fillWidth: true }
                                 ComboBox {
                                     id: headlightCombo
-                                    Layout.fillWidth: true
+                                    Layout.preferredWidth: 140
                                     model: ["Off", "On (White)", "Police Strobe", "Custom Color...", "Rainbow", "Cylon Scanner", "Custom Pattern..."]
                                     onCurrentIndexChanged: {
                                         if (typeof commandEmitter !== "undefined") {
@@ -467,11 +485,14 @@ Window {
                                     }
                                 }
                                 Button {
-                                    text: "Color"
+                                    text: "🎨"
+                                    Layout.preferredWidth: 40
                                     visible: headlightCombo.currentIndex === 3 || headlightCombo.currentIndex === 6
                                     onClicked: customColorDialog.open()
                                 }
                             }
+                            
+                            Item { Layout.fillWidth: true; height: 20 }
                         }
                     } // End ScrollView
                 } // End ColumnLayout
@@ -577,6 +598,7 @@ Window {
                 TabButton { text: "Drive & Radar" }
                 TabButton { text: "Hardware & Safety" }
                 TabButton { text: "HUD Profile" }
+                TabButton { text: "Shortcuts" }
             }
 
             SwipeView {
@@ -801,7 +823,28 @@ Window {
                                 }
                             }
                         }
+
+                        Rectangle { Layout.fillWidth: true; height: 1; color: "#555" }
+                        Text { text: "Realtime Overrides"; color: "white"; font.bold: true }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "NoLag Hard Realtime (N)"; color: "gray"; font.pixelSize: 13; Layout.fillWidth: true }
+                            Switch { 
+                                id: noLagSwitch
+                                onCheckedChanged: if (typeof commandEmitter !== "undefined") commandEmitter.setNoLagMode(checked)
+                            }
+                        }
                         
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Show Obstacle Alerts (O)"; color: "gray"; font.pixelSize: 13; Layout.fillWidth: true }
+                            Switch { 
+                                id: alertSwitch
+                                checked: true
+                            }
+                        }
+
                         Rectangle { Layout.fillWidth: true; height: 1; color: "#555" }
                         Text { text: "IMU Level Calibration"; color: "white"; font.bold: true }
                         
@@ -910,6 +953,61 @@ Window {
                             }
                         }
 
+                        Item { Layout.fillHeight: true } // spacer
+                    }
+                }
+
+                // --- TAB 5: Shortcuts ---
+                ScrollView {
+                    contentWidth: availableWidth
+                    clip: true
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 15
+
+                        Text { text: "Keyboard Shortcuts"; color: "white"; font.bold: true; Layout.topMargin: 10 }
+                        Rectangle { Layout.fillWidth: true; height: 1; color: "#555" }
+
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: 2
+                            columnSpacing: 20
+                            rowSpacing: 10
+
+                            Text { text: "W / S / A / D (or Arrows)"; color: "#00E676"; font.bold: true }
+                            Text { text: "Drive Forward / Reverse / Left / Right"; color: "white" }
+
+                            Text { text: "Shift (Hold)"; color: "#00E676"; font.bold: true }
+                            Text { text: "Boost (Overrides Throttle Limit temporarily)"; color: "white" }
+
+                            Text { text: "1 / 2 / 3 / 4"; color: "#00E676"; font.bold: true }
+                            Text { text: "Speed Modes (Crawl, Precision, Normal, Sport)"; color: "white" }
+
+                            Text { text: "H / L"; color: "#00E676"; font.bold: true }
+                            Text { text: "Toggle Headlights Mode"; color: "white" }
+
+                            Text { text: "N"; color: "#00E676"; font.bold: true }
+                            Text { text: "Toggle NoLag Hard Realtime"; color: "white" }
+
+                            Text { text: "B"; color: "#00E676"; font.bold: true }
+                            Text { text: "Toggle Auto Emergency Brake"; color: "white" }
+
+                            Text { text: "V"; color: "#00E676"; font.bold: true }
+                            Text { text: "Toggle APF Collision Avoidance"; color: "white" }
+
+                            Text { text: "R"; color: "#00E676"; font.bold: true }
+                            Text { text: "Toggle Radar Sweep"; color: "white" }
+
+                            Text { text: "O"; color: "#00E676"; font.bold: true }
+                            Text { text: "Toggle Show Obstacle Alerts"; color: "white" }
+
+                            Text { text: "F"; color: "#00E676"; font.bold: true }
+                            Text { text: "Toggle Invert ToF Sensors (Front/Back)"; color: "white" }
+
+                            Text { text: "K"; color: "#00E676"; font.bold: true }
+                            Text { text: "Toggle 3D Kinematics View"; color: "white" }
+                        }
+                        
                         Item { Layout.fillHeight: true } // spacer
                     }
                 }

@@ -17,6 +17,14 @@ class TelemetryClient : public QObject {
     Q_PROPERTY(int tof1DistMm READ tof1DistMm NOTIFY telemetryUpdated)
     Q_PROPERTY(int tof2DistMm READ tof2DistMm NOTIFY telemetryUpdated)
     Q_PROPERTY(int servoAngleDeg READ servoAngleDeg NOTIFY telemetryUpdated)
+    Q_PROPERTY(float linearAccX READ linearAccX NOTIFY telemetryUpdated)
+    Q_PROPERTY(float linearAccY READ linearAccY NOTIFY telemetryUpdated)
+    Q_PROPERTY(float linearAccZ READ linearAccZ NOTIFY telemetryUpdated)
+    Q_PROPERTY(int motorLeftPwm READ motorLeftPwm NOTIFY telemetryUpdated)
+    Q_PROPERTY(int motorRightPwm READ motorRightPwm NOTIFY telemetryUpdated)
+    Q_PROPERTY(int activeImuType READ activeImuType NOTIFY telemetryUpdated)
+    Q_PROPERTY(int activeMagType READ activeMagType NOTIFY telemetryUpdated)
+    Q_PROPERTY(int statusFlags READ statusFlags NOTIFY telemetryUpdated)
 
 public:
     explicit TelemetryClient(QObject *parent = nullptr);
@@ -34,6 +42,14 @@ public:
     int tof1DistMm() const { return m_packet.tof1DistMm; }
     int tof2DistMm() const { return m_packet.tof2DistMm; }
     int servoAngleDeg() const { return m_packet.servoAngleDeg; }
+    float linearAccX() const { return m_packet.linearAccX; }
+    float linearAccY() const { return m_packet.linearAccY; }
+    float linearAccZ() const { return m_packet.linearAccZ; }
+    int motorLeftPwm() const { return m_packet.motorLeftPwm; }
+    int motorRightPwm() const { return m_packet.motorRightPwm; }
+    int activeImuType() const { return m_packet.activeImuType; }
+    int activeMagType() const { return m_packet.activeMagType; }
+    int statusFlags() const { return m_packet.statusFlags; }
 
 signals:
     void telemetryUpdated();
