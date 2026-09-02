@@ -34,6 +34,7 @@ public slots:   // Input hooks for the UI/Gamepad
     void setAutoBrake(bool enable);
     void setApfAvoidance(bool enable);
     void setRadarSweep(bool enable);
+    void setRadarSweepSpeed(uint8_t speed);
     void setNoLagMode(bool enable);
     void setSpeedMode(uint8_t mode);
     void setHeadlightMode(int mode);

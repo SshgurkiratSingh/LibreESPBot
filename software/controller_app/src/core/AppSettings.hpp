@@ -10,6 +10,7 @@ class AppSettings : public QObject {
     Q_PROPERTY(int radarPointLifetimeMs READ radarPointLifetimeMs WRITE setRadarPointLifetimeMs NOTIFY radarPointLifetimeMsChanged)
     Q_PROPERTY(int sensorBaseAngleDeg READ sensorBaseAngleDeg WRITE setSensorBaseAngleDeg NOTIFY sensorBaseAngleDegChanged)
     Q_PROPERTY(bool invertTof READ invertTof WRITE setInvertTof NOTIFY invertTofChanged)
+    Q_PROPERTY(int radarSweepSpeed READ radarSweepSpeed WRITE setRadarSweepSpeed NOTIFY radarSweepSpeedChanged)
 
     Q_PROPERTY(bool display3dKinematics READ display3dKinematics WRITE setDisplay3dKinematics NOTIFY display3dKinematicsChanged)
     Q_PROPERTY(bool displayHudDebug READ displayHudDebug WRITE setDisplayHudDebug NOTIFY displayHudDebugChanged)
@@ -37,6 +38,9 @@ public:
 
     bool invertTof() const;
     void setInvertTof(bool invert);
+
+    int radarSweepSpeed() const;
+    void setRadarSweepSpeed(int speed);
 
     bool display3dKinematics() const;
     void setDisplay3dKinematics(bool display);
@@ -81,6 +85,7 @@ signals:
     void radarPointLifetimeMsChanged();
     void sensorBaseAngleDegChanged();
     void invertTofChanged();
+    void radarSweepSpeedChanged();
     void display3dKinematicsChanged();
     void displayHudDebugChanged();
     void maxThrottleLimitChanged();
@@ -101,6 +106,7 @@ private:
     int m_radarPointLifetimeMs;
     int m_sensorBaseAngleDeg;
     bool m_invertTof;
+    int m_radarSweepSpeed;
     bool m_display3dKinematics;
     bool m_displayHudDebug;
     int m_maxThrottleLimit;

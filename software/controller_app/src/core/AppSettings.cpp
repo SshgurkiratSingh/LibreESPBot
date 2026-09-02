@@ -8,6 +8,7 @@ AppSettings::AppSettings(QObject *parent)
     m_radarPointLifetimeMs = m_settings.value("Radar/PointLifetimeMs", 5000).toInt();
     m_sensorBaseAngleDeg = m_settings.value("Radar/SensorBaseAngleDeg", 0).toInt();
     m_invertTof = m_settings.value("Radar/InvertTof", false).toBool();
+    m_radarSweepSpeed = m_settings.value("Radar/SweepSpeed", 5).toInt();
 
     m_display3dKinematics = m_settings.value("Display/3dKinematics", false).toBool();
     m_displayHudDebug = m_settings.value("Display/HudDebug", true).toBool();
@@ -56,6 +57,18 @@ void AppSettings::setInvertTof(bool invert) {
         m_invertTof = invert;
         m_settings.setValue("Radar/InvertTof", invert);
         emit invertTofChanged();
+    }
+}
+
+int AppSettings::radarSweepSpeed() const {
+    return m_radarSweepSpeed;
+}
+
+void AppSettings::setRadarSweepSpeed(int speed) {
+    if (m_radarSweepSpeed != speed) {
+        m_radarSweepSpeed = speed;
+        m_settings.setValue("Radar/SweepSpeed", speed);
+        emit radarSweepSpeedChanged();
     }
 }
 

@@ -605,6 +605,22 @@ Window {
                                 if (!isNaN(val) && val > 0 && typeof appSettings !== "undefined") appSettings.radarPointLifetimeMs = val;
                             }
                         }
+
+                        Text { text: "Radar Sweep Speed: " + radarSpeedSlider.value.toFixed(0); color: "gray"; font.pixelSize: 12 }
+                        Slider {
+                            id: radarSpeedSlider
+                            Layout.fillWidth: true
+                            from: 1; to: 10
+                            value: (typeof appSettings !== "undefined") ? appSettings.radarSweepSpeed : 5
+                            onValueChanged: {
+                                if (typeof appSettings !== "undefined") {
+                                    appSettings.radarSweepSpeed = value;
+                                }
+                                if (typeof commandEmitter !== "undefined") {
+                                    commandEmitter.setRadarSweepSpeed(value);
+                                }
+                            }
+                        }
                         
                         Text { text: "Radar Base Angle Offset (deg)"; color: "gray"; font.pixelSize: 12 }
                         TextField {

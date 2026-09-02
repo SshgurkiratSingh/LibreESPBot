@@ -235,10 +235,14 @@ void loop()
     int16_t currentRight = baseRightPwm;
     autoEngine.update(currentLeft, currentRight);
 
-    // Radar Sweep Update (Skip if noLagMode)
     if (!lastCommand.enableNoLagMode && lastCommand.enableRadarSweep)
     {
-        if (millis() - lastServoTime > 15)
+        uint8_t speed = lastCommand.radarSweepSpeed;
+        if (speed == 0) speed = 5; // Default speed
+        
+        uint32_t interval = 45 - (speed * 4); // Maps 1->41ms, 5->25ms, 10->5ms
+        
+        if (millis() - lastServoTime > interval)
         {
             lastServoTime = millis();
             servoAngle += servoDir * 2;
