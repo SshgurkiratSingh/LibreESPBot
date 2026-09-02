@@ -454,13 +454,15 @@ Window {
                                 ComboBox {
                                     id: headlightCombo
                                     Layout.fillWidth: true
-                                    model: ["Off", "On (White)", "Police Strobe", "Custom...", "Rainbow", "Cylon Scanner"]
+                                    model: ["Off", "On (White)", "Police Strobe", "Custom Color...", "Rainbow", "Cylon Scanner", "Custom Pattern..."]
                                     onCurrentIndexChanged: {
                                         if (typeof commandEmitter !== "undefined") {
                                             commandEmitter.setHeadlightMode(currentIndex)
                                         }
                                         if (currentIndex === 3) {
                                             customColorDialog.open()
+                                        } else if (currentIndex === 6) {
+                                            customPatternDialog.open()
                                         }
                                     }
                                 }
@@ -486,6 +488,65 @@ Window {
         }
         onRejected: {
             if (headlightCombo.currentIndex === 3) {
+                headlightCombo.currentIndex = 0
+            }
+        }
+    }
+
+    Dialog {
+        id: customPatternDialog
+        title: "Define Custom LED Sequence"
+        width: 350
+        height: 250
+        x: (parent.width - width) / 2
+        y: (parent.height - height) / 2
+        modal: true
+        standardButtons: Dialog.Save | Dialog.Cancel
+
+        property int currentPattern: 255 // Default all ones
+        
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 15
+
+            Text {
+                text: "Select steps for LED to be ON (left to right):"
+                color: "white"
+            }
+
+            RowLayout {
+                spacing: 5
+                Layout.alignment: Qt.AlignHCenter
+                
+                Repeater {
+                    model: 8
+                    CheckBox {
+                        checked: (customPatternDialog.currentPattern & (1 << (7 - index))) !== 0
+                        onCheckedChanged: {
+                            if (checked) {
+                                customPatternDialog.currentPattern |= (1 << (7 - index));
+                            } else {
+                                customPatternDialog.currentPattern &= ~(1 << (7 - index));
+                            }
+                        }
+                    }
+                }
+            }
+            
+            Button {
+                text: "Change Color"
+                Layout.alignment: Qt.AlignHCenter
+                onClicked: customColorDialog.open()
+            }
+        }
+
+        onAccepted: {
+            if (typeof commandEmitter !== "undefined") {
+                commandEmitter.setCustomLedPattern(currentPattern)
+            }
+        }
+        onRejected: {
+            if (headlightCombo.currentIndex === 6) {
                 headlightCombo.currentIndex = 0
             }
         }
@@ -566,6 +627,15 @@ Window {
                                     discoveryWorker.setManualCameraIp(text);
                                 }
                             }
+                        }
+                        
+                        Text { text: "Camera Max FPS"; color: "gray"; font.pixelSize: 12 }
+                        Slider {
+                            id: cameraFpsSlider
+                            Layout.fillWidth: true
+                            from: 1; to: 30
+                            value: (typeof appSettings !== "undefined") ? appSettings.cameraFps : 10
+                            onValueChanged: if (typeof appSettings !== "undefined") appSettings.cameraFps = value
                         }
 
                         Rectangle { Layout.fillWidth: true; height: 1; color: "#555" }

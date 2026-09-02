@@ -383,6 +383,18 @@ void loop()
                     ledsLeft[i] = (i == activeLed) ? CRGB::Red : CRGB::Black;
                     ledsRight[i] = (i == activeLed) ? CRGB::Red : CRGB::Black;
                 }
+                else if (headlightMode == 6)
+                {
+                    // Custom Binary Pattern Mode
+                    // pattern represents an 8-step sequence
+                    uint8_t pattern = lastCommand.customLedPattern;
+                    int step = (millis() / 150) % 8; // Change step every 150ms
+                    bool isOn = (pattern & (1 << (7 - step))) != 0;
+                    
+                    CRGB customColor = CRGB(lastCommand.customLedR, lastCommand.customLedG, lastCommand.customLedB);
+                    ledsLeft[i] = isOn ? customColor : CRGB::Black;
+                    ledsRight[i] = isOn ? customColor : CRGB::Black;
+                }
                 else
                 {
                     ledsLeft[i] = CRGB::Black; // Off

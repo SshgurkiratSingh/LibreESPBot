@@ -69,6 +69,10 @@ void CommandEmitter::setCustomLedColor(int r, int g, int b) {
     m_packet.customLedB = b;
 }
 
+void CommandEmitter::setCustomLedPattern(uint8_t pattern) {
+    m_packet.customLedPattern = pattern;
+}
+
 void CommandEmitter::sendCommandPacket() {
     if (m_targetIp.isNull()) return;
 

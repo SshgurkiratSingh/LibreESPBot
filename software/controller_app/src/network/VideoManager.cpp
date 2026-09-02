@@ -9,7 +9,7 @@
 #include <QtConcurrent>
 
 VideoManager::VideoManager(QObject *parent) 
-    : QObject(parent), m_reply(nullptr), m_isRecording(false), m_frameCount(0) {
+    : QObject(parent), m_reply(nullptr), m_isRecording(false), m_frameCount(0), m_targetFps(10) {
     m_timer = new QTimer(this);
     m_nam = new QNetworkAccessManager(this);
     m_timer->setSingleShot(true);
@@ -45,6 +45,13 @@ void VideoManager::toggleRecording() {
         m_isRecording = true;
         emit recordingChanged();
         qDebug() << "Started recording to:" << m_recordDir;
+    }
+}
+
+void VideoManager::setTargetFps(int fps) {
+    if (m_targetFps != fps && fps > 0) {
+        m_targetFps = fps;
+        emit targetFpsChanged();
     }
 }
 
@@ -105,8 +112,9 @@ void VideoManager::onFrameDownloaded() {
     m_reply->deleteLater();
     m_reply = nullptr;
     
-    // Poll next frame at ~10 FPS
-    m_timer->start(100);
+    // Poll next frame at target FPS
+    int interval = 1000 / m_targetFps;
+    m_timer->start(interval);
 }
 
 void VideoManager::compileVideo() {
