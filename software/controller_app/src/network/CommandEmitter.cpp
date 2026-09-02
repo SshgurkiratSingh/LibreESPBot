@@ -54,6 +54,7 @@ void CommandEmitter::updateSteering(int16_t steering) { m_packet.steeringAxis = 
 void CommandEmitter::setAutoBrake(bool enable) { m_packet.enableAutoBrake = enable ? 1 : 0; }
 void CommandEmitter::setApfAvoidance(bool enable) { m_packet.enableApfAvoidance = enable ? 1 : 0; }
 void CommandEmitter::setRadarSweep(bool enable) { m_packet.enableRadarSweep = enable ? 1 : 0; }
+void CommandEmitter::setRadarSweepSpeed(uint8_t speed) { m_packet.radarSweepSpeed = speed; }
 void CommandEmitter::setNoLagMode(bool enable) { m_packet.enableNoLagMode = enable ? 1 : 0; }
 void CommandEmitter::setSpeedMode(uint8_t mode) {
     if (m_packet.speedModeLimit != mode) {

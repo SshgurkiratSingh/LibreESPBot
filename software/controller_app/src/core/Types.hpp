@@ -47,6 +47,7 @@ struct VehicleCommandPacket {
     uint8_t  enableAutoBrake;
     uint8_t  enableApfAvoidance;
     uint8_t  enableRadarSweep;
+    uint8_t  radarSweepSpeed; // Servo sweeping speed control
     uint8_t  speedModeLimit;  // 0: Precision (30%), 1: Normal (70%), 2: Sport (100%)
     uint8_t  headlightMode;   // 0: Off, 1: On (White), 2: Police Strobe, 3: Custom
     uint8_t  customLedR;
