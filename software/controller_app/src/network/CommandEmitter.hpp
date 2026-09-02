@@ -39,6 +39,7 @@ public slots:   // Input hooks for the UI/Gamepad
     void setSpeedMode(uint8_t mode);
     void setHeadlightMode(int mode);
     void setCustomLedColor(int r, int g, int b);
+    void setCustomLedPattern(uint8_t pattern);
 
 private slots:
     void sendCommandPacket();

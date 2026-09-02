@@ -95,6 +95,12 @@ int main(int argc, char *argv[])
     discoveryWorker.startDiscovery();
     telemetryClient.startListening(8889);
     
+    // Bind settings
+    videoManager.setTargetFps(appSettings.cameraFps());
+    QObject::connect(&appSettings, &AppSettings::cameraFpsChanged, [&](){
+        videoManager.setTargetFps(appSettings.cameraFps());
+    });
+    
     // CommandEmitter MUST share the TelemetryClient's bound socket (8889).
     // This punches exactly one bidirectional UDP hole in the stateful firewall,
     // and prevents Linux from dropping packets via dual-socket load balancing.

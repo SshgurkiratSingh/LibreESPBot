@@ -10,11 +10,14 @@ class VideoManager : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool isRecording READ isRecording NOTIFY recordingChanged)
     Q_PROPERTY(QString currentFrameBase64 READ currentFrameBase64 NOTIFY frameReceived)
+    Q_PROPERTY(int targetFps READ targetFps WRITE setTargetFps NOTIFY targetFpsChanged)
     
 public:
     explicit VideoManager(QObject *parent = nullptr);
     bool isRecording() const { return m_isRecording; }
     QString currentFrameBase64() const { return m_currentFrameBase64; }
+    int targetFps() const { return m_targetFps; }
+    void setTargetFps(int fps);
 
 public slots:
     void startStream(const QString& ip);
@@ -26,6 +29,7 @@ signals:
     void frameReceived();
     void errorOccurred(const QString& errorMsg);
     void recordingSaved(const QString& path);
+    void targetFpsChanged();
 
 private slots:
     void fetchNextFrame();
@@ -41,4 +45,5 @@ private:
     int m_frameCount;
     QString m_recordDir;
     QTimer* m_timer;
+    int m_targetFps;
 };

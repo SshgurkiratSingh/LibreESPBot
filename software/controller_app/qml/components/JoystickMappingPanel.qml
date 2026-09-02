@@ -45,7 +45,7 @@ Dialog {
     Rectangle {
         id: learningOverlay
         anchors.fill: parent
-        color: "rgba(0,0,0,0.8)"
+        color: Qt.rgba(0, 0, 0, 0.8)
         z: 100
         visible: false
         
