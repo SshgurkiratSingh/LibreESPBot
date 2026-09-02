@@ -470,7 +470,6 @@ Window {
                                     text: "Color"
                                     visible: headlightCombo.currentIndex === 3 || headlightCombo.currentIndex === 6
                                     onClicked: customColorDialog.open()
-                                    Layout.preferredWidth: 70
                                 }
                             }
                         }
@@ -483,6 +482,7 @@ Window {
     ColorDialog {
         id: customColorDialog
         title: "Choose Custom LED Color"
+        parentWindow: mainWindow
         onAccepted: {
             if (typeof commandEmitter !== "undefined") {
                 commandEmitter.setCustomLedColor(
