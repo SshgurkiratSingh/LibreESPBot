@@ -39,6 +39,45 @@ esp32-rover-platform/
 
 ---
 
+## Project Gallery
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><img src="docs/Images/AppLogoForReadme.png" alt="LibreESPBot wordmark" width="420" /></td>
+      <td align="center"><img src="docs/Images/Application.png" alt="LibreESPBot controller application" width="420" /></td>
+      <td align="center"><img src="docs/Images/DisconnectedApp.png" alt="LibreESPBot controller in disconnected state" width="420" /></td>
+    </tr>
+    <tr>
+      <td align="center"><b>LibreESPBot wordmark</b></td>
+      <td align="center"><b>Controller application</b></td>
+      <td align="center"><b>Disconnected controller state</b></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="docs/Images/Bot.jpg" alt="LibreESPBot rover front view" width="280" /></td>
+      <td align="center"><img src="docs/Images/SidePicOfBot.jpg" alt="LibreESPBot rover side view" width="280" /></td>
+      <td align="center"><img src="docs/Images/1788417989600.jpg" alt="LibreESPBot rover assembled view" width="280" /></td>
+    </tr>
+    <tr>
+      <td align="center"><b>Front view</b></td>
+      <td align="center"><b>Side view</b></td>
+      <td align="center"><b>Assembled rover</b></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="docs/Images/InternalofBot.jpg" alt="LibreESPBot rover internal electronics" width="280" /></td>
+      <td align="center"><img src="docs/Images/Sensor.png" alt="LibreESPBot sensor dashboard" width="280" /></td>
+      <td align="center"><img src="docs/Images/AppLogo.png" alt="LibreESPBot logo" width="280" /></td>
+    </tr>
+    <tr>
+      <td align="center"><b>Internal electronics</b></td>
+      <td align="center"><b>Sensor view</b></td>
+      <td align="center"><b>Project logo</b></td>
+    </tr>
+  </table>
+</div>
+
+---
+
 ## Documentation Links
 
 For detailed deep-dives into the architecture, communication protocol, and build instructions, please refer to the dedicated documentation files:
