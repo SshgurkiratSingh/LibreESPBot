@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/Images/AppLogo.png" alt="LibreESPBot Logo" width="400"/>
+  <img src="docs/Images/AppLogoForReadme.png" alt="LibreESPBot Logo" width="400"/>
 </div>
 
 # ESP32 Multi-Sensor Rover & LibreESPBot
