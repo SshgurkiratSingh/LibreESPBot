@@ -95,7 +95,8 @@ jobs:
         run: |
           cmake -B build -S software/controller_app -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=${{ runner.workspace }}/Qt/6.6.2/gcc_64
+            -DCMAKE_PREFIX_PATH=${{ runner.workspace }}/Qt/6.6.2/gcc_64 \
+            -DOpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4
           cmake --build build --config Release
 
       - name: Package AppImage
@@ -153,7 +154,7 @@ jobs:
           cmake -B build -S software/controller_app -G "Ninja" ^
             -DCMAKE_BUILD_TYPE=Release ^
             -DCMAKE_PREFIX_PATH="%RUNNER_WORKSPACE%\Qt\6.6.2\msvc2019_64" ^
-            -DOpenCV_DIR="%GITHUB_WORKSPACE%\opencv\opencv\build"
+            -DOpenCV_DIR="${{ github.workspace }}/opencv/opencv/build"
           cmake --build build --config Release
 
       - name: Execute windeployqt & Package
