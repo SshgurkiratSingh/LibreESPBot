@@ -41,6 +41,14 @@ if [ -d "/usr/lib64/flexiblas" ]; then
     cp -r "/usr/lib64/flexiblas" "$RELEASE_DIR/lib/"
 fi
 
+# Copy Qt plugins and QML
+if [ -d "/usr/lib64/qt6/plugins" ]; then
+    cp -r "/usr/lib64/qt6/plugins" "$RELEASE_DIR/lib/"
+fi
+if [ -d "/usr/lib64/qt6/qml" ]; then
+    cp -r "/usr/lib64/qt6/qml" "$RELEASE_DIR/lib/"
+fi
+
 # 3. Create run.sh wrapper
 echo "Creating launch script..."
 cat > "$RELEASE_DIR/run.sh" << 'EOF'
