@@ -145,42 +145,69 @@ Window {
         anchors.fill: parent
         focus: true // Necessary to capture keyboard events
 
+        property var pressedKeys: ({})
+        Timer {
+            id: movementDebouncer
+            interval: 30
+            onTriggered: {
+                let t = 0.0;
+                let s = 0.0;
+                if (pressedKeys[Qt.Key_W] || pressedKeys[Qt.Key_Up]) t = 1.0;
+                else if (pressedKeys[Qt.Key_S] || pressedKeys[Qt.Key_Down]) t = -1.0;
+                if (pressedKeys[Qt.Key_A] || pressedKeys[Qt.Key_Left]) s = -1.0;
+                else if (pressedKeys[Qt.Key_D] || pressedKeys[Qt.Key_Right]) s = 1.0;
+                keyThrottle = t;
+                keySteering = s;
+            }
+        }
+
         Keys.onPressed: (event) => {
-            if (event.isAutoRepeat) return;
-            if (event.key === Qt.Key_W || event.key === Qt.Key_Up) keyThrottle = 1.0;
-            else if (event.key === Qt.Key_S || event.key === Qt.Key_Down) keyThrottle = -1.0;
-            else if (event.key === Qt.Key_A || event.key === Qt.Key_Left) keySteering = -1.0;
-            else if (event.key === Qt.Key_D || event.key === Qt.Key_Right) keySteering = 1.0;
-            else if (event.key === Qt.Key_Shift) {
-                previousSpeedMode = speedModeCombo.currentIndex;
-                speedModeCombo.currentIndex = 3; // Sport
-            }
-            else if (event.key === Qt.Key_B) aebSwitch.checked = !aebSwitch.checked;
-            else if (event.key === Qt.Key_V) apfSwitch.checked = !apfSwitch.checked;
-            else if (event.key === Qt.Key_R) radarSwitch.checked = !radarSwitch.checked;
-            else if (event.key === Qt.Key_O) alertSwitch.checked = !alertSwitch.checked;
-            else if (event.key === Qt.Key_N) noLagSwitch.checked = !noLagSwitch.checked;
-            else if (event.key === Qt.Key_F) {
-                if (typeof appSettings !== "undefined") {
-                    appSettings.invertTof = !appSettings.invertTof;
+            if (event.key === Qt.Key_W || event.key === Qt.Key_Up || 
+                event.key === Qt.Key_S || event.key === Qt.Key_Down ||
+                event.key === Qt.Key_A || event.key === Qt.Key_Left || 
+                event.key === Qt.Key_D || event.key === Qt.Key_Right) {
+                pressedKeys[event.key] = true;
+                movementDebouncer.restart();
+            } else {
+                if (event.isAutoRepeat) return;
+                
+                if (event.key === Qt.Key_Shift) {
+                    previousSpeedMode = speedModeCombo.currentIndex;
+                    speedModeCombo.currentIndex = 3; // Sport
                 }
-            }
-            else if (event.key === Qt.Key_K) enable3dKinematics = !enable3dKinematics;
-            else if (event.key === Qt.Key_1) speedModeCombo.currentIndex = 0;
-            else if (event.key === Qt.Key_2) speedModeCombo.currentIndex = 1;
-            else if (event.key === Qt.Key_3) speedModeCombo.currentIndex = 2;
-            else if (event.key === Qt.Key_4) speedModeCombo.currentIndex = 3;
-            else if (event.key === Qt.Key_H || event.key === Qt.Key_L) {
-                headlightCombo.currentIndex = (headlightCombo.currentIndex + 1) % headlightCombo.model.length;
+                else if (event.key === Qt.Key_B) aebSwitch.checked = !aebSwitch.checked;
+                else if (event.key === Qt.Key_V) apfSwitch.checked = !apfSwitch.checked;
+                else if (event.key === Qt.Key_R) radarSwitch.checked = !radarSwitch.checked;
+                else if (event.key === Qt.Key_O) alertSwitch.checked = !alertSwitch.checked;
+                else if (event.key === Qt.Key_N) noLagSwitch.checked = !noLagSwitch.checked;
+                else if (event.key === Qt.Key_F) {
+                    if (typeof appSettings !== "undefined") {
+                        appSettings.invertTof = !appSettings.invertTof;
+                    }
+                }
+                else if (event.key === Qt.Key_K) enable3dKinematics = !enable3dKinematics;
+                else if (event.key === Qt.Key_1) speedModeCombo.currentIndex = 0;
+                else if (event.key === Qt.Key_2) speedModeCombo.currentIndex = 1;
+                else if (event.key === Qt.Key_3) speedModeCombo.currentIndex = 2;
+                else if (event.key === Qt.Key_4) speedModeCombo.currentIndex = 3;
+                else if (event.key === Qt.Key_H || event.key === Qt.Key_L) {
+                    headlightCombo.currentIndex = (headlightCombo.currentIndex + 1) % headlightCombo.model.length;
+                }
             }
         }
 
         Keys.onReleased: (event) => {
-            if (event.isAutoRepeat) return;
-            if (event.key === Qt.Key_W || event.key === Qt.Key_Up || event.key === Qt.Key_S || event.key === Qt.Key_Down) keyThrottle = 0;
-            else if (event.key === Qt.Key_A || event.key === Qt.Key_Left || event.key === Qt.Key_D || event.key === Qt.Key_Right) keySteering = 0;
-            else if (event.key === Qt.Key_Shift) {
-                speedModeCombo.currentIndex = previousSpeedMode;
+            if (event.key === Qt.Key_W || event.key === Qt.Key_Up || 
+                event.key === Qt.Key_S || event.key === Qt.Key_Down ||
+                event.key === Qt.Key_A || event.key === Qt.Key_Left || 
+                event.key === Qt.Key_D || event.key === Qt.Key_Right) {
+                pressedKeys[event.key] = false;
+                movementDebouncer.restart();
+            } else {
+                if (event.isAutoRepeat) return;
+                if (event.key === Qt.Key_Shift) {
+                    speedModeCombo.currentIndex = previousSpeedMode;
+                }
             }
         }
 
