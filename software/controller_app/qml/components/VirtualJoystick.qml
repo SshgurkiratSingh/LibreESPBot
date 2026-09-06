@@ -6,10 +6,6 @@ Item {
     property bool axisXEnabled: true
     property bool axisYEnabled: true
     
-    // Values from -1023 to 1023
-    property int axisX: 0
-    property int axisY: 0
-    
     // Exponential response curve filtering: u_exp(v) = sgn(v) * |v|^1.6
     function applyCurve(v) {
         let norm = v / 1023.0;
@@ -18,13 +14,34 @@ Item {
         return Math.round(expVal * 1023);
     }
     
-    function setExternal(xNorm, yNorm) {
-        // xNorm, yNorm are from -1.0 to 1.0
-        stick.x = (base.width - stick.width) / 2 + (xNorm * (base.width / 2.2));
-        stick.y = (base.height - stick.height) / 2 - (yNorm * (base.height / 2.2));
-        
-        root.axisX = applyCurve(xNorm * 1023);
-        root.axisY = applyCurve(yNorm * 1023);
+    // Reverse exponential curve to find physical stick position from backend value
+    function reverseCurve(v) {
+        let norm = v / 1023.0;
+        let sign = norm < 0 ? -1 : 1;
+        let linearNorm = sign * Math.pow(Math.abs(norm), 1.0 / 1.6);
+        return linearNorm;
+    }
+    
+    Connections {
+        target: (typeof commandEmitter !== "undefined" && commandEmitter) ? commandEmitter : null
+        function onCurrentThrottleChanged() {
+            if (!tp.pressed) {
+                let v = commandEmitter.currentThrottle;
+                let limit = (typeof appSettings !== "undefined") ? (appSettings.maxThrottleLimit / 100.0) : 1.0;
+                if (limit > 0) v = v / limit; // Reverse limit scaling for UI
+                let linearNorm = reverseCurve(v);
+                stick.y = (base.height - stick.height) / 2 - (linearNorm * (base.height / 2.2));
+            }
+        }
+        function onCurrentSteeringChanged() {
+            if (!tp.pressed) {
+                let v = commandEmitter.currentSteering;
+                let sens = (typeof appSettings !== "undefined") ? appSettings.steeringSensitivity : 1.0;
+                if (sens > 0) v = v / sens; // Reverse sens scaling for UI
+                let linearNorm = reverseCurve(v);
+                stick.x = (base.width - stick.width) / 2 + (linearNorm * (base.width / 2.2));
+            }
+        }
     }
     
     Rectangle {
@@ -74,19 +91,28 @@ Item {
                     stick.x = newX - stick.width / 2;
                     stick.y = newY - stick.height / 2;
                     
-                    // Normalize to -1023 to +1023
-                    let rawX = ((newX / base.width) * 2 - 1) * 1023;
-                    let rawY = -((newY / base.height) * 2 - 1) * 1023; // Invert Y
-                    
-                    root.axisX = applyCurve(rawX);
-                    root.axisY = applyCurve(rawY);
+                    if (typeof commandEmitter !== "undefined") {
+                        let rawX = ((newX / base.width) * 2 - 1) * 1023;
+                        let rawY = -((newY / base.height) * 2 - 1) * 1023;
+                        
+                        let axisX = applyCurve(rawX);
+                        let axisY = applyCurve(rawY);
+                        
+                        let sens = (typeof appSettings !== "undefined") ? appSettings.steeringSensitivity : 1.0;
+                        let limit = (typeof appSettings !== "undefined") ? (appSettings.maxThrottleLimit / 100.0) : 1.0;
+                        
+                        commandEmitter.updateSteering(axisX * sens);
+                        commandEmitter.updateThrottle(axisY * limit);
+                    }
                 }
             }
             onReleased: {
                 stick.x = (base.width - stick.width) / 2;
                 stick.y = (base.height - stick.height) / 2;
-                root.axisX = 0;
-                root.axisY = 0;
+                if (typeof commandEmitter !== "undefined") {
+                    commandEmitter.updateSteering(0);
+                    commandEmitter.updateThrottle(0);
+                }
             }
         }
     }

@@ -44,13 +44,18 @@ void CommandEmitter::stopEmitting() {
     }
 }
 
-void CommandEmitter::updateThrottle(int16_t throttle) {
+void CommandEmitter::updateThrottle(int throttle) {
     if (m_packet.throttleAxis != throttle) {
         m_packet.throttleAxis = throttle;
         emit currentThrottleChanged();
     }
 }
-void CommandEmitter::updateSteering(int16_t steering) { m_packet.steeringAxis = steering; }
+void CommandEmitter::updateSteering(int steering) {
+    if (m_packet.steeringAxis != steering) {
+        m_packet.steeringAxis = steering;
+        emit currentSteeringChanged();
+    }
+}
 void CommandEmitter::setAutoBrake(bool enable) { m_packet.enableAutoBrake = enable ? 1 : 0; }
 void CommandEmitter::setApfAvoidance(bool enable) { m_packet.enableApfAvoidance = enable ? 1 : 0; }
 void CommandEmitter::setRadarSweep(bool enable) { m_packet.enableRadarSweep = enable ? 1 : 0; }

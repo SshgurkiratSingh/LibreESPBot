@@ -23,8 +23,6 @@ Window {
     Material.accent: Material.Green
 
     // Keyboard Input State
-    property real keyThrottle: 0.0
-    property real keySteering: 0.0
     property int previousSpeedMode: 1
     
     property bool enable3dKinematics: false
@@ -44,14 +42,17 @@ Window {
         }
     }
 
-    onKeyThrottleChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
-    onKeySteeringChanged: if (typeof mainJoystick !== "undefined" && mainJoystick !== null) mainJoystick.setExternal(keySteering, keyThrottle)
-
     onActiveChanged: {
         if (!active) {
             // Safety: release all keys if window loses focus
-            keyThrottle = 0;
-            keySteering = 0;
+            if (typeof commandEmitter !== "undefined") {
+                commandEmitter.updateThrottle(0);
+                commandEmitter.updateSteering(0);
+            }
+            if (typeof rootItem !== "undefined") {
+                rootItem.keyboardThrottleHeld = false;
+                rootItem.keyboardSteeringHeld = false;
+            }
         } else {
             // Re-gain focus to allow keyboard events immediately
             if (typeof rootItem !== "undefined") rootItem.forceActiveFocus();
@@ -121,10 +122,20 @@ Window {
         target: typeof joystickHandler !== "undefined" ? joystickHandler : null
         
         function onMappedAxisChanged(actionName, value) {
-            if (actionName === "Throttle") {
-                keyThrottle = -value;
-            } else if (actionName === "Steering") {
-                keySteering = value;
+            if (typeof commandEmitter !== "undefined") {
+                if (Math.abs(value) < 0.05) value = 0; // Deadzone to prevent drift
+                
+                if (actionName === "Throttle") {
+                    // Don't let gamepad at rest overwrite keyboard input
+                    if (rootItem.keyboardThrottleHeld && Math.abs(value) < 0.1) return;
+                    let limit = (typeof appSettings !== "undefined") ? (appSettings.maxThrottleLimit / 100.0) : 1.0;
+                    commandEmitter.updateThrottle(-value * 1023 * limit);
+                } else if (actionName === "Steering") {
+                    // Don't let gamepad at rest overwrite keyboard input
+                    if (rootItem.keyboardSteeringHeld && Math.abs(value) < 0.1) return;
+                    let sens = (typeof appSettings !== "undefined") ? appSettings.steeringSensitivity : 1.0;
+                    commandEmitter.updateSteering(value * 1023 * sens);
+                }
             }
         }
         
@@ -133,9 +144,13 @@ Window {
                 if (actionName === "Brake") aebSwitch.checked = !aebSwitch.checked;
                 else if (actionName === "Radar") radarSwitch.checked = !radarSwitch.checked;
                 else if (actionName === "SpeedMode") speedModeCombo.currentIndex = (speedModeCombo.currentIndex + 1) % 4;
-                else if (actionName === "Reverse") keyThrottle = -1.0;
+                else if (actionName === "Reverse") {
+                    if (typeof commandEmitter !== "undefined") commandEmitter.updateThrottle(-1023);
+                }
             } else {
-                if (actionName === "Reverse") keyThrottle = 0.0;
+                if (actionName === "Reverse") {
+                    if (typeof commandEmitter !== "undefined") commandEmitter.updateThrottle(0);
+                }
             }
         }
     }
@@ -145,69 +160,77 @@ Window {
         anchors.fill: parent
         focus: true // Necessary to capture keyboard events
 
-        property var pressedKeys: ({})
-        Timer {
-            id: movementDebouncer
-            interval: 100
-            onTriggered: {
-                let t = 0.0;
-                let s = 0.0;
-                if (pressedKeys[Qt.Key_W] || pressedKeys[Qt.Key_Up]) t = 1.0;
-                else if (pressedKeys[Qt.Key_S] || pressedKeys[Qt.Key_Down]) t = -1.0;
-                if (pressedKeys[Qt.Key_A] || pressedKeys[Qt.Key_Left]) s = -1.0;
-                else if (pressedKeys[Qt.Key_D] || pressedKeys[Qt.Key_Right]) s = 1.0;
-                keyThrottle = t;
-                keySteering = s;
-            }
-        }
+        // Track whether keyboard movement keys are held down
+        // so that gamepad idle (value=0) doesn't overwrite them
+        property bool keyboardThrottleHeld: false
+        property bool keyboardSteeringHeld: false
 
         Keys.onPressed: (event) => {
-            if (event.key === Qt.Key_W || event.key === Qt.Key_Up || 
-                event.key === Qt.Key_S || event.key === Qt.Key_Down ||
-                event.key === Qt.Key_A || event.key === Qt.Key_Left || 
-                event.key === Qt.Key_D || event.key === Qt.Key_Right) {
-                pressedKeys[event.key] = true;
-                movementDebouncer.restart();
-            } else {
-                if (event.isAutoRepeat) return;
-                
-                if (event.key === Qt.Key_Shift) {
-                    previousSpeedMode = speedModeCombo.currentIndex;
-                    speedModeCombo.currentIndex = 3; // Sport
+            if (event.isAutoRepeat) return;
+            if (event.key === Qt.Key_W || event.key === Qt.Key_Up) {
+                rootItem.keyboardThrottleHeld = true;
+                if (typeof commandEmitter !== "undefined") {
+                    let limit = (typeof appSettings !== "undefined") ? (appSettings.maxThrottleLimit / 100.0) : 1.0;
+                    commandEmitter.updateThrottle(1023 * limit);
                 }
-                else if (event.key === Qt.Key_B) aebSwitch.checked = !aebSwitch.checked;
-                else if (event.key === Qt.Key_V) apfSwitch.checked = !apfSwitch.checked;
-                else if (event.key === Qt.Key_R) radarSwitch.checked = !radarSwitch.checked;
-                else if (event.key === Qt.Key_O) alertSwitch.checked = !alertSwitch.checked;
-                else if (event.key === Qt.Key_N) noLagSwitch.checked = !noLagSwitch.checked;
-                else if (event.key === Qt.Key_F) {
-                    if (typeof appSettings !== "undefined") {
-                        appSettings.invertTof = !appSettings.invertTof;
-                    }
+            }
+            else if (event.key === Qt.Key_S || event.key === Qt.Key_Down) {
+                rootItem.keyboardThrottleHeld = true;
+                if (typeof commandEmitter !== "undefined") {
+                    let limit = (typeof appSettings !== "undefined") ? (appSettings.maxThrottleLimit / 100.0) : 1.0;
+                    commandEmitter.updateThrottle(-1023 * limit);
                 }
-                else if (event.key === Qt.Key_K) enable3dKinematics = !enable3dKinematics;
-                else if (event.key === Qt.Key_1) speedModeCombo.currentIndex = 0;
-                else if (event.key === Qt.Key_2) speedModeCombo.currentIndex = 1;
-                else if (event.key === Qt.Key_3) speedModeCombo.currentIndex = 2;
-                else if (event.key === Qt.Key_4) speedModeCombo.currentIndex = 3;
-                else if (event.key === Qt.Key_H || event.key === Qt.Key_L) {
-                    headlightCombo.currentIndex = (headlightCombo.currentIndex + 1) % headlightCombo.model.length;
+            }
+            else if (event.key === Qt.Key_A || event.key === Qt.Key_Left) {
+                rootItem.keyboardSteeringHeld = true;
+                if (typeof commandEmitter !== "undefined") {
+                    let sens = (typeof appSettings !== "undefined") ? appSettings.steeringSensitivity : 1.0;
+                    commandEmitter.updateSteering(-1023 * sens);
                 }
+            }
+            else if (event.key === Qt.Key_D || event.key === Qt.Key_Right) {
+                rootItem.keyboardSteeringHeld = true;
+                if (typeof commandEmitter !== "undefined") {
+                    let sens = (typeof appSettings !== "undefined") ? appSettings.steeringSensitivity : 1.0;
+                    commandEmitter.updateSteering(1023 * sens);
+                }
+            }
+            else if (event.key === Qt.Key_Shift) {
+                previousSpeedMode = speedModeCombo.currentIndex;
+                speedModeCombo.currentIndex = 3; // Sport
+            }
+            else if (event.key === Qt.Key_B) aebSwitch.checked = !aebSwitch.checked;
+            else if (event.key === Qt.Key_V) apfSwitch.checked = !apfSwitch.checked;
+            else if (event.key === Qt.Key_R) radarSwitch.checked = !radarSwitch.checked;
+            else if (event.key === Qt.Key_O) alertSwitch.checked = !alertSwitch.checked;
+            else if (event.key === Qt.Key_N) noLagSwitch.checked = !noLagSwitch.checked;
+            else if (event.key === Qt.Key_F) {
+                if (typeof appSettings !== "undefined") {
+                    appSettings.invertTof = !appSettings.invertTof;
+                }
+            }
+            else if (event.key === Qt.Key_K) enable3dKinematics = !enable3dKinematics;
+            else if (event.key === Qt.Key_1) speedModeCombo.currentIndex = 0;
+            else if (event.key === Qt.Key_2) speedModeCombo.currentIndex = 1;
+            else if (event.key === Qt.Key_3) speedModeCombo.currentIndex = 2;
+            else if (event.key === Qt.Key_4) speedModeCombo.currentIndex = 3;
+            else if (event.key === Qt.Key_H || event.key === Qt.Key_L) {
+                headlightCombo.currentIndex = (headlightCombo.currentIndex + 1) % headlightCombo.model.length;
             }
         }
 
         Keys.onReleased: (event) => {
-            if (event.key === Qt.Key_W || event.key === Qt.Key_Up || 
-                event.key === Qt.Key_S || event.key === Qt.Key_Down ||
-                event.key === Qt.Key_A || event.key === Qt.Key_Left || 
-                event.key === Qt.Key_D || event.key === Qt.Key_Right) {
-                pressedKeys[event.key] = false;
-                movementDebouncer.restart();
-            } else {
-                if (event.isAutoRepeat) return;
-                if (event.key === Qt.Key_Shift) {
-                    speedModeCombo.currentIndex = previousSpeedMode;
-                }
+            if (event.isAutoRepeat) return;
+            if (event.key === Qt.Key_W || event.key === Qt.Key_Up || event.key === Qt.Key_S || event.key === Qt.Key_Down) {
+                rootItem.keyboardThrottleHeld = false;
+                if (typeof commandEmitter !== "undefined") commandEmitter.updateThrottle(0);
+            }
+            else if (event.key === Qt.Key_A || event.key === Qt.Key_Left || event.key === Qt.Key_D || event.key === Qt.Key_Right) {
+                rootItem.keyboardSteeringHeld = false;
+                if (typeof commandEmitter !== "undefined") commandEmitter.updateSteering(0);
+            }
+            else if (event.key === Qt.Key_Shift) {
+                speedModeCombo.currentIndex = previousSpeedMode;
             }
         }
 
@@ -349,7 +372,7 @@ Window {
                     }
                     
                     // Only show alert if moving forward or backward to prevent annoyance while stationary
-                    property bool isMoving: keyThrottle !== 0 || (typeof mainJoystick !== "undefined" && Math.abs(mainJoystick.axisY) > 100)
+                    property bool isMoving: typeof commandEmitter !== "undefined" && Math.abs(commandEmitter.currentThrottle) > 100
                     
                     visible: alertSwitch.checked && hasObstacle && isMoving
                     
@@ -413,19 +436,6 @@ Window {
                         Layout.alignment: Qt.AlignHCenter
                         axisXEnabled: true
                         axisYEnabled: true
-                        
-                        onAxisYChanged: {
-                            if (typeof commandEmitter !== "undefined") {
-                                var limit = (typeof appSettings !== "undefined") ? (appSettings.maxThrottleLimit / 100.0) : 1.0;
-                                commandEmitter.updateThrottle(axisY * limit);
-                            }
-                        }
-                        onAxisXChanged: {
-                            if (typeof commandEmitter !== "undefined") {
-                                var sens = (typeof appSettings !== "undefined") ? appSettings.steeringSensitivity : 1.0;
-                                commandEmitter.updateSteering(axisX * sens);
-                            }
-                        }
                     }
 
                     // Scrollable settings area below the joystick
