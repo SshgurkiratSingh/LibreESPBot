@@ -148,7 +148,7 @@ Window {
         property var pressedKeys: ({})
         Timer {
             id: movementDebouncer
-            interval: 30
+            interval: 100
             onTriggered: {
                 let t = 0.0;
                 let s = 0.0;
