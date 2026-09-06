@@ -36,6 +36,11 @@ if [ -f "$BUILD_DIR/haarcascade_frontalface_default.xml" ]; then
     cp "$BUILD_DIR/haarcascade_frontalface_default.xml" "$RELEASE_DIR/"
 fi
 
+# Copy FlexiBLAS plugins if they exist
+if [ -d "/usr/lib64/flexiblas" ]; then
+    cp -r "/usr/lib64/flexiblas" "$RELEASE_DIR/lib/"
+fi
+
 # 3. Create run.sh wrapper
 echo "Creating launch script..."
 cat > "$RELEASE_DIR/run.sh" << 'EOF'
@@ -44,6 +49,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export LD_LIBRARY_PATH="$DIR/lib:$LD_LIBRARY_PATH"
 export QT_PLUGIN_PATH="$DIR/lib/plugins"
 export QML2_IMPORT_PATH="$DIR/lib/qml"
+export FLEXIBLAS_LIBRARY_PATH="$DIR/lib/flexiblas"
 exec "$DIR/LibreESPBot" "$@"
 EOF
 
