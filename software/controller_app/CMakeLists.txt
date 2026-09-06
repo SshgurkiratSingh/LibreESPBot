@@ -10,8 +10,19 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network Multimedia Concurrent)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs objdetect stitching)
 
-file(COPY /usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
+set(HAARCASCADE_FILE "${CMAKE_CURRENT_BINARY_DIR}/haarcascade_frontalface_default.xml")
+if(NOT EXISTS "${HAARCASCADE_FILE}")
+    message(STATUS "Downloading haarcascade_frontalface_default.xml...")
+    file(DOWNLOAD 
+        "https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml"
+        "${HAARCASCADE_FILE}"
+        STATUS download_status
+    )
+    list(GET download_status 0 download_code)
+    if(NOT download_code EQUAL 0)
+        message(WARNING "Failed to download haarcascade file!")
+    endif()
+endif()
 set(SOURCES
     src/main.cpp
     src/network/TelemetryClient.cpp
