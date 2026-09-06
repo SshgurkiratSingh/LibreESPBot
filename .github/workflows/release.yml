@@ -80,7 +80,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libgl1-mesa-dev libglib2.0-0 \
             libpulse-dev libx11-xcb1 libxkbcommon-x11-0 libasound2-dev libavcodec-dev \
-            libavformat-dev libswscale-dev libavutil-dev wget libxcb-cursor0
+            libavformat-dev libswscale-dev libavutil-dev wget libxcb-cursor0 \
+            libopencv-dev
 
       - name: Install Qt 6.6.2
         uses: jurplel/install-qt-action@v3
@@ -140,12 +141,19 @@ jobs:
           arch: 'win64_msvc2019_64'
           modules: 'qtmultimedia'
 
+      - name: Download and Extract OpenCV
+        shell: powershell
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-windows.exe" -OutFile "opencv.exe"
+          7z x opencv.exe -o"opencv" -y
+
       - name: Build Qt Controller Application
         shell: cmd
         run: |
           cmake -B build -S software/controller_app -G "Ninja" ^
             -DCMAKE_BUILD_TYPE=Release ^
-            -DCMAKE_PREFIX_PATH="%RUNNER_WORKSPACE%\Qt\6.6.2\msvc2019_64"
+            -DCMAKE_PREFIX_PATH="%RUNNER_WORKSPACE%\Qt\6.6.2\msvc2019_64" ^
+            -DOpenCV_DIR="%GITHUB_WORKSPACE%\opencv\opencv\build"
           cmake --build build --config Release
 
       - name: Execute windeployqt & Package
@@ -153,6 +161,7 @@ jobs:
         run: |
           mkdir dist
           copy build\LibreESPBot.exe dist\
+          copy "%GITHUB_WORKSPACE%\opencv\opencv\build\x64\vc16\bin\opencv_world490.dll" dist\
           "%RUNNER_WORKSPACE%\Qt\6.6.2\msvc2019_64\bin\windeployqt.exe" --qmldir software/controller_app/qml --release --no-translations dist\LibreESPBot.exe
           powershell Compress-Archive -Path dist\* -DestinationPath LibreESPBot-Windows-x64.zip
           mkdir build_artifacts\windows
@@ -208,6 +217,11 @@ jobs:
           arch: 'android_arm64_v8a'
           modules: 'qtmultimedia'
 
+      - name: Download and Extract OpenCV Android SDK
+        run: |
+          wget -q https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip
+          unzip -q opencv-4.9.0-android-sdk.zip
+
       - name: Configure and Build APK
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
@@ -221,7 +235,8 @@ jobs:
             -DQT_CHAINLOAD_TOOLCHAIN_FILE=${{ env.ANDROID_NDK_ROOT }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26 \
-            -DQT_ANDROID_ABIS=arm64-v8a
+            -DQT_ANDROID_ABIS=arm64-v8a \
+            -DOpenCV_DIR=${{ github.workspace }}/OpenCV-android-sdk/sdk/native/jni
           cmake --build build --target apk
 
       - name: Move, Rename, and Sign APK
