@@ -173,34 +173,57 @@ void PanoramaBuilder::stitchImages() {
         return;
     }
 
-    // Naive horizontal concatenation
-    int singleWidth = m_capturedImages.first().width();
-    int height = m_capturedImages.first().height();
-    int totalWidth = singleWidth * m_capturedImages.size();
-
-    QImage result(totalWidth, height, QImage::Format_ARGB32);
-    result.fill(Qt::black);
-
-    QPainter painter(&result);
+    std::vector<cv::Mat> cvImages;
     for (int i = 0; i < m_capturedImages.size(); ++i) {
-        painter.drawImage(i * singleWidth, 0, m_capturedImages[i]);
+        QImage img = m_capturedImages[i].convertToFormat(QImage::Format_RGB888);
+        cv::Mat mat(img.height(), img.width(), CV_8UC3, (void*)img.constBits(), img.bytesPerLine());
+        cv::Mat bgrMat;
+        cv::cvtColor(mat, bgrMat, cv::COLOR_RGB2BGR);
+        cvImages.push_back(bgrMat.clone());
     }
-    painter.end();
-
+    
+    cv::Mat resultMat;
+    cv::Ptr<cv::Stitcher> stitcher = cv::Stitcher::create(cv::Stitcher::SCANS);
+    cv::Stitcher::Status status = stitcher->stitch(cvImages, resultMat);
+    
     QString docsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     QDir dir(docsPath);
     if (!dir.exists("LibreESP")) {
         dir.mkpath("LibreESP");
     }
-    
     QString fileName = QString("Panorama_%1.jpg").arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
     QString fullPath = dir.filePath("LibreESP/" + fileName);
 
-    if (result.save(fullPath, "JPG", 90)) {
-        setLastResultPath(fullPath);
-        emit panoramaFinished(fullPath);
+    if (status == cv::Stitcher::OK) {
+        if (cv::imwrite(fullPath.toStdString(), resultMat)) {
+            setLastResultPath(fullPath);
+            emit panoramaFinished(fullPath);
+        } else {
+            emit panoramaError("Failed to save OpenCV stitched image.");
+        }
     } else {
-        emit panoramaError("Failed to save stitched image.");
+        qWarning() << "OpenCV Stitching failed with status: " << status << ". Falling back to naive concatenation.";
+        
+        // Naive horizontal concatenation fallback
+        int singleWidth = m_capturedImages.first().width();
+        int height = m_capturedImages.first().height();
+        int totalWidth = singleWidth * m_capturedImages.size();
+
+        QImage result(totalWidth, height, QImage::Format_ARGB32);
+        result.fill(Qt::black);
+
+        QPainter painter(&result);
+        for (int i = 0; i < m_capturedImages.size(); ++i) {
+            painter.drawImage(i * singleWidth, 0, m_capturedImages[i]);
+        }
+        painter.end();
+
+        if (result.save(fullPath, "JPG", 90)) {
+            setLastResultPath(fullPath);
+            emit panoramaFinished(fullPath);
+        } else {
+            emit panoramaError("Failed to save stitched image.");
+        }
     }
 
     m_state = IDLE;

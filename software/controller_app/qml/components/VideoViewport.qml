@@ -46,6 +46,53 @@ Rectangle {
         visible: root.isConnected
         cache: false
         asynchronous: false // Base64 loads instantly, disabling async prevents all flickering
+        
+        MouseArea {
+            anchors.fill: parent
+            enabled: typeof videoManager !== "undefined" ? videoManager.cvPickColorActive : false
+            cursorShape: enabled ? Qt.CrossCursor : Qt.ArrowCursor
+            onClicked: (mouse) => {
+                if (typeof videoManager !== "undefined" && videoManager.cvPickColorActive) {
+                    let xRatio = mouse.x / width
+                    let yRatio = mouse.y / height
+                    videoManager.requestColorPick(xRatio, yRatio)
+                }
+            }
+        }
+        
+        Rectangle {
+            anchors.fill: parent
+            color: "transparent"
+            border.color: "#00FF00"
+            border.width: 3
+            visible: typeof videoManager !== "undefined" ? videoManager.cvPickColorActive : false
+        }
+        
+        Column {
+            anchors.centerIn: parent
+            spacing: 20
+            visible: typeof videoManager !== "undefined" ? videoManager.cvPickColorActive : false
+
+            Text {
+                text: "CLICK ANYWHERE ON VIDEO TO PICK TARGET COLOR"
+                color: "#00FF00"
+                font.bold: true
+                font.pixelSize: 24
+                style: Text.Outline
+                styleColor: "black"
+                horizontalAlignment: Text.AlignHCenter
+            }
+            
+            Button {
+                text: "CANCEL"
+                anchors.horizontalCenter: parent.horizontalCenter
+                onClicked: {
+                    if (typeof videoManager !== "undefined") {
+                        videoManager.cvPickColorActive = false
+                    }
+                }
+            }
+        }
     }
 
     // Recording indicator and button

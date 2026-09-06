@@ -4,6 +4,10 @@
 #include <QImage>
 #include <QTimer>
 #include <QList>
+#include <opencv2/core.hpp>
+#include <opencv2/stitching.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include "../network/CommandEmitter.hpp"
 #include "../network/TelemetryClient.hpp"
 #include "../network/VideoManager.hpp"

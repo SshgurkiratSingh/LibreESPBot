@@ -7,7 +7,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network QuickControls2 Multimedia Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network Multimedia Concurrent)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs objdetect stitching)
+
+file(COPY /usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(SOURCES
     src/main.cpp
@@ -25,6 +28,8 @@ set(SOURCES
 
 qt_add_executable(LibreESPBot ${SOURCES})
 
+target_include_directories(LibreESPBot PRIVATE ${OpenCV_INCLUDE_DIRS})
+
 target_link_libraries(LibreESPBot PRIVATE
     Qt6::Core
     Qt6::Gui
@@ -34,6 +39,7 @@ target_link_libraries(LibreESPBot PRIVATE
     Qt6::QuickControls2
     Qt6::Multimedia
     Qt6::Concurrent
+    ${OpenCV_LIBS}
 )
 
 # QML files

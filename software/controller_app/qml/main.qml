@@ -438,6 +438,20 @@ Window {
 
                             RowLayout {
                                 Layout.fillWidth: true
+                                Text { text: "CV Autonomous Driving"; color: "#00FF00"; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true }
+                                Switch { 
+                                    id: autoDriveSwitch
+                                    checked: typeof videoManager !== "undefined" ? videoManager.cvAutoDrive : false
+                                    onCheckedChanged: {
+                                        if (typeof videoManager !== "undefined") {
+                                            videoManager.cvAutoDrive = checked;
+                                        }
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
                                 Text { text: "Auto Emergency Brake"; color: "#E0E0E0"; font.pixelSize: 13; Layout.fillWidth: true }
                                 Switch { 
                                     id: aebSwitch
@@ -599,6 +613,7 @@ Window {
                 TabButton { text: "Hardware & Safety" }
                 TabButton { text: "HUD Profile" }
                 TabButton { text: "Shortcuts" }
+                TabButton { text: "Computer Vision" }
             }
 
             SwipeView {
@@ -1008,6 +1023,122 @@ Window {
                             Text { text: "Toggle 3D Kinematics View"; color: "white" }
                         }
                         
+                        Item { Layout.fillHeight: true } // spacer
+                    }
+                }
+
+                // --- TAB 6: Computer Vision ---
+                ScrollView {
+                    contentWidth: availableWidth
+                    clip: true
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 15
+
+                        Text { text: "OpenCV Filters"; color: "white"; font.bold: true; Layout.topMargin: 10 }
+                        Rectangle { Layout.fillWidth: true; height: 1; color: "#555" }
+
+                        Switch {
+                            text: "Targeting Crosshair"
+                            checked: typeof videoManager !== "undefined" ? videoManager.cvCrosshair : false
+                            onCheckedChanged: if (typeof videoManager !== "undefined") videoManager.cvCrosshair = checked
+                        }
+
+                        Switch {
+                            text: "Canny Edge Detection"
+                            checked: typeof videoManager !== "undefined" ? videoManager.cvEdgeDetection : false
+                            onCheckedChanged: if (typeof videoManager !== "undefined") videoManager.cvEdgeDetection = checked
+                        }
+
+                        Switch {
+                            text: "Night Vision"
+                            checked: typeof videoManager !== "undefined" ? videoManager.cvNightVision : false
+                            onCheckedChanged: if (typeof videoManager !== "undefined") videoManager.cvNightVision = checked
+                        }
+
+                        Switch {
+                            text: "Grayscale"
+                            checked: typeof videoManager !== "undefined" ? videoManager.cvGrayscale : false
+                            onCheckedChanged: if (typeof videoManager !== "undefined") videoManager.cvGrayscale = checked
+                        }
+
+                        Switch {
+                            text: "Gaussian Blur"
+                            checked: typeof videoManager !== "undefined" ? videoManager.cvGaussianBlur : false
+                            onCheckedChanged: if (typeof videoManager !== "undefined") videoManager.cvGaussianBlur = checked
+                        }
+
+                        Switch {
+                            text: "Invert Colors"
+                            checked: typeof videoManager !== "undefined" ? videoManager.cvInvertColors : false
+                            onCheckedChanged: if (typeof videoManager !== "undefined") videoManager.cvInvertColors = checked
+                        }
+                        Text { text: "Autonomous Tracking"; color: "white"; font.bold: true; Layout.topMargin: 20 }
+                        Rectangle { Layout.fillWidth: true; height: 1; color: "#555" }
+
+                        Switch {
+                            text: "Color Tracking Mode"
+                            checked: typeof videoManager !== "undefined" ? videoManager.cvAutoFollow : false
+                            onCheckedChanged: {
+                                if (typeof videoManager !== "undefined") {
+                                    videoManager.cvAutoFollow = checked
+                                    if (checked) {
+                                        videoManager.cvMotionTracking = false
+                                        videoManager.cvFaceTracking = false
+                                    }
+                                }
+                            }
+                        }
+
+                        Switch {
+                            text: "Motion Tracking Mode"
+                            checked: typeof videoManager !== "undefined" ? videoManager.cvMotionTracking : false
+                            onCheckedChanged: {
+                                if (typeof videoManager !== "undefined") {
+                                    videoManager.cvMotionTracking = checked
+                                    if (checked) {
+                                        videoManager.cvAutoFollow = false
+                                        videoManager.cvFaceTracking = false
+                                    }
+                                }
+                            }
+                        }
+
+                        Switch {
+                            text: "Face Tracking Mode"
+                            checked: typeof videoManager !== "undefined" ? videoManager.cvFaceTracking : false
+                            onCheckedChanged: {
+                                if (typeof videoManager !== "undefined") {
+                                    videoManager.cvFaceTracking = checked
+                                    if (checked) {
+                                        videoManager.cvAutoFollow = false
+                                        videoManager.cvMotionTracking = false
+                                    }
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+                            visible: typeof videoManager !== "undefined" ? videoManager.cvAutoFollow : false
+                            
+                            Button {
+                                text: (typeof videoManager !== "undefined" && videoManager.cvPickColorActive) ? "Click on the video feed..." : "Pick Color from Feed"
+                                Layout.fillWidth: true
+                                onClicked: {
+                                    if (typeof videoManager !== "undefined") {
+                                        videoManager.cvPickColorActive = !videoManager.cvPickColorActive
+                                    }
+                                }
+                            }
+                            
+                            Text {
+                                text: "Current OpenCV Hue Target: " + (typeof videoManager !== "undefined" ? videoManager.cvTrackHue : 0)
+                                color: "#aaa"
+                                font.pixelSize: 12
+                            }
+                        }
                         Item { Layout.fillHeight: true } // spacer
                     }
                 }

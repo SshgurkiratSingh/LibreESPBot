@@ -80,6 +80,8 @@ int main(int argc, char *argv[])
     TurningCalibrator turningCalibrator(&commandEmitter, &telemetryClient);
 
     // Expose to QML
+    videoManager.setCommandEmitter(&commandEmitter);
+    
     engine.rootContext()->setContextProperty("telemetryClient", &telemetryClient);
     engine.rootContext()->setContextProperty("commandEmitter", &commandEmitter);
     engine.rootContext()->setContextProperty("discoveryWorker", &discoveryWorker);

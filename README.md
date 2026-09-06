@@ -87,6 +87,12 @@ A high-performance controller application written in **C++ and QML (Qt 6)**. It 
   - `PolarRadarCanvas`: Converts polar Time-of-Flight distances into a 2D Cartesian radar plot, mapping close objects in red and safe objects in green.
   - `ArtificialHorizon`: Dynamic UI linked to the real-time ESP32 IMU Euler angles.
   - `VirtualJoystick`: Multi-touch joysticks equipped with exponential response curve filtering (`u_exp(v) = sgn(v) * |v|^1.6`).
+- **Autonomous Computer Vision**:
+  - **Color Tracking**: HSV masking to lock onto targets by color.
+  - **Motion Tracking**: Background subtraction and frame differencing to track moving objects autonomously.
+  - **Face Tracking**: Integrated OpenCV Haar Cascades for detecting and following human faces.
+  - **Auto-Drive Override**: Instantly delegate control of the steering and throttle to the CV system to physically follow tracked objects!
+  - **OpenCV Panorama Stitching**: Generates a 360-degree panorama dynamically by commanding the rover to pan and utilizing OpenCV's advanced image stitching algorithms to construct seamless panoramic imagery.
 
 ### Building Software
 Requires a **Qt 6.6+** development environment.
@@ -95,6 +101,22 @@ cd software/controller_app
 cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
+
+---
+
+## ROS 2 Compatibility
+
+The LibreESPBot can be natively integrated into the Robot Operating System (ROS 2) ecosystem using the included ROS 2 Bridge. This allows the rover to interface with standard ROS tools like `rviz`, `nav2`, and `slam_toolbox` for autonomous navigation without modifying the highly optimized ESP firmware.
+
+### Architecture
+Located in `software/ros2_bridge`, the Python-based `libreesp_ros_bridge` node acts as a translator:
+- Subscribes to standard `/cmd_vel` (`geometry_msgs/Twist`) and converts it to the rover's `VehicleCommandPacket`.
+- Listens to the 50Hz UDP telemetry stream and publishes standard ROS messages:
+  - `/imu/data` (`sensor_msgs/Imu`)
+  - `/sensors/range_left` & `/sensors/range_right` (`sensor_msgs/Range`)
+  - `/diagnostics` (`diagnostic_msgs/DiagnosticArray`)
+
+For complete build and usage instructions, see the [ROS 2 Bridge README](software/ros2_bridge/README.md).
 
 ---
 
