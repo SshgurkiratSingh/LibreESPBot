@@ -234,15 +234,25 @@ void loop()
 
 
 
-                // Manual Override: If the user touches the joystick, instantly abort hardware auto-turn
-                if (abs(lastCommand.throttleAxis) > 50 || abs(lastCommand.steeringAxis) > 50) {
-                    lastCommand.enableAutoTurn = 0;
-                }
+            static bool manualOverrideActive = false;
 
-                // Apply command to Automation Engine
-                autoEngine.setAEB(lastCommand.enableAutoBrake);
-                autoEngine.setAPF(lastCommand.enableApfAvoidance);
-                autoEngine.setAutoTurn(lastCommand.enableAutoTurn, lastCommand.targetHeading);
+            // Manual Override: If the user touches the joystick, instantly abort hardware auto-turn
+            if (abs(lastCommand.throttleAxis) > 50 || abs(lastCommand.steeringAxis) > 50) {
+                manualOverrideActive = true;
+            }
+            
+            if (lastCommand.enableAutoTurn == 0) {
+                manualOverrideActive = false; // PC app cleared the flag, safe to reset
+            }
+
+            if (manualOverrideActive) {
+                lastCommand.enableAutoTurn = 0;
+            }
+
+            // Apply command to Automation Engine
+            autoEngine.setAEB(lastCommand.enableAutoBrake);
+            autoEngine.setAPF(lastCommand.enableApfAvoidance);
+            autoEngine.setAutoTurn(lastCommand.enableAutoTurn, lastCommand.targetHeading);
 
                 float speedMult = 1.0f;
                 if (lastCommand.speedModeLimit == 0) speedMult = 0.15f;      // Crawl

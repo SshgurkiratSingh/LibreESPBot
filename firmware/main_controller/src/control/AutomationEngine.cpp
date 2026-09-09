@@ -29,7 +29,14 @@ void AutomationEngine::update(int16_t &leftPwm, int16_t &rightPwm, float current
         while (diff > 180.0f) diff -= 360.0f;
         while (diff < -180.0f) diff += 360.0f;
         
-        if (abs(diff) <= 5.0f) {
+        static bool isAligned = false;
+        if (abs(diff) <= 3.0f) {
+            isAligned = true;
+        } else if (abs(diff) > 8.0f) {
+            isAligned = false;
+        }
+
+        if (isAligned) {
             leftPwm = 0;
             rightPwm = 0;
             turnSpeed = 350;
