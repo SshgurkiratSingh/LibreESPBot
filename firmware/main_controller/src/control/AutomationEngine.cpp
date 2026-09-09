@@ -18,7 +18,48 @@ void AutomationEngine::setAPF(bool enable) {
 #define APF_THRESHOLD_MM 600
 #define APF_GAIN 1.5f
 
-void AutomationEngine::update(int16_t &leftPwm, int16_t &rightPwm) {
+void AutomationEngine::setAutoTurn(bool enable, int16_t heading) {
+    autoTurnEnabled = enable;
+    targetHeading = heading;
+}
+
+void AutomationEngine::update(int16_t &leftPwm, int16_t &rightPwm, float currentHeading) {
+    if (autoTurnEnabled) {
+        float diff = targetHeading - currentHeading;
+        while (diff > 180.0f) diff -= 360.0f;
+        while (diff < -180.0f) diff += 360.0f;
+        
+        if (abs(diff) <= 5.0f) {
+            leftPwm = 0;
+            rightPwm = 0;
+            turnSpeed = 350;
+        } else {
+            float headingDelta = abs(currentHeading - lastHeading);
+            if (headingDelta < 0.5f) {
+                stuckTicks++;
+                if (stuckTicks >= 25) { // 500ms @ 50Hz
+                    turnSpeed += 100;
+                    if (turnSpeed > 900) turnSpeed = 900;
+                    stuckTicks = 0;
+                }
+            } else {
+                stuckTicks = 0;
+                turnSpeed -= 25;
+                if (turnSpeed < 350) turnSpeed = 350;
+            }
+            
+            int steerCmd = (diff > 0) ? -turnSpeed : turnSpeed;
+            leftPwm = steerCmd;
+            rightPwm = -steerCmd;
+        }
+        lastHeading = currentHeading;
+        
+        // Skip APF/AEB while auto turning, just push command
+        motorDriver->setMotorLeft(leftPwm);
+        motorDriver->setMotorRight(rightPwm);
+        return;
+    }
+    
     uint16_t leftDist = tofRadar->getLeftDistanceMm();
     uint16_t rightDist = tofRadar->getRightDistanceMm();
     
@@ -44,12 +85,6 @@ void AutomationEngine::update(int16_t &leftPwm, int16_t &rightPwm) {
             // Obstacle on right pushes us left (left-, right+)
             leftPwm += (int16_t)(repulseLeft - repulseRight);
             rightPwm -= (int16_t)(repulseLeft - repulseRight);
-            
-            // Constrain to physical limits
-            if (leftPwm > 1023) leftPwm = 1023;
-            if (leftPwm < -1023) leftPwm = -1023;
-            if (rightPwm > 1023) rightPwm = 1023;
-            if (rightPwm < -1023) rightPwm = -1023;
         }
     }
 
@@ -64,7 +99,12 @@ void AutomationEngine::update(int16_t &leftPwm, int16_t &rightPwm) {
         }
     }
     
-    // Safety check complete, push final safe command to hardware
+    // Safety check complete, constrain to physical limits before pushing
+    if (leftPwm > 1023) leftPwm = 1023;
+    if (leftPwm < -1023) leftPwm = -1023;
+    if (rightPwm > 1023) rightPwm = 1023;
+    if (rightPwm < -1023) rightPwm = -1023;
+    
     motorDriver->setMotorLeft(leftPwm);
     motorDriver->setMotorRight(rightPwm);
 }

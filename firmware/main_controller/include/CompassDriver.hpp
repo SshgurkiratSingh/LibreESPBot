@@ -17,6 +17,19 @@ private:
     MagType _chipType;
     uint8_t _chipAddr;
 
+    int16_t _minX = 32767;
+    int16_t _maxX = -32768;
+    int16_t _minY = 32767;
+    int16_t _maxY = -32768;
+
+    // Frozen calibration offsets (set once, never changed after motors start)
+    int16_t _offsetX = 0;
+    int16_t _offsetY = 0;
+    bool _calFrozen = false;
+
+    // EMA (Exponential Moving Average) low-pass filter
+    float _headingEma = -1.0f; // -1 = not initialized yet
+
     bool writeReg(uint8_t addr, uint8_t reg, uint8_t val);
     bool readBytes(uint8_t addr, uint8_t reg, uint8_t* buf, uint8_t n);
     bool readByte(uint8_t addr, uint8_t reg, uint8_t& val);

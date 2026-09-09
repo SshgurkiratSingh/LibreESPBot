@@ -44,11 +44,33 @@ void VideoManager::setCvAutoDrive(bool enabled) { if (m_cvAutoDrive != enabled) 
 void VideoManager::setCvTrackHue(int hue) { if (m_cvTrackHue != hue) { m_cvTrackHue = hue; emit cvSettingsChanged(); } }
 void VideoManager::setCvPickColorActive(bool enabled) { if (m_cvPickColorActive != enabled) { m_cvPickColorActive = enabled; emit cvSettingsChanged(); } }
 
-void VideoManager::requestColorPick(double xRatio, double yRatio) {
+void VideoManager::requestColorPick(double xRatio, double yRatio,
+                                    double widgetW, double widgetH) {
     if (m_cvPickColorActive) {
+        // Account for PreserveAspectCrop: the image is cropped, not stretched.
+        // We need to convert widget-space coordinates to frame-space coordinates.
+        m_pickWidgetW = widgetW;
+        m_pickWidgetH = widgetH;
         m_pickX = xRatio;
         m_pickY = yRatio;
         m_needsColorPick = true;
+    }
+}
+
+void VideoManager::setTrackColorRGB(int r, int g, int b) {
+    // Convert RGB -> OpenCV HSV hue (0-180)
+    cv::Mat rgb(1, 1, CV_8UC3, cv::Scalar(b, g, r)); // OpenCV is BGR
+    cv::Mat hsv;
+    cv::cvtColor(rgb, hsv, cv::COLOR_BGR2HSV);
+    int hue = hsv.at<cv::Vec3b>(0, 0)[0];
+    m_cvTrackR = r;
+    m_cvTrackG = g;
+    m_cvTrackB = b;
+    if (m_cvTrackHue != hue) {
+        m_cvTrackHue = hue;
+        emit cvSettingsChanged();
+    } else {
+        emit cvSettingsChanged(); // always emit to update UI color swatch
     }
 }
 void VideoManager::setTargetFps(int fps) {
@@ -98,6 +120,7 @@ void VideoManager::fetchNextFrame() {
     request.setTransferTimeout(1000);
     
     if (m_reply) {
+        m_reply->abort();
         m_reply->deleteLater();
     }
     
@@ -131,6 +154,8 @@ void VideoManager::onFrameDownloaded() {
         bool needsColorPick = m_needsColorPick;
         double pickX = m_pickX;
         double pickY = m_pickY;
+        double pickWidgetW = m_pickWidgetW;
+        double pickWidgetH = m_pickWidgetH;
         m_needsColorPick = false; // reset immediately
         bool doMotionTracking = m_cvMotionTracking;
         cv::Mat prevGrayFrame = m_prevGrayFrame;
@@ -139,7 +164,7 @@ void VideoManager::onFrameDownloaded() {
         bool cascadeLoaded = m_faceCascadeLoaded;
         
         // Offload heavy operations (Base64 encoding & Disk IO) to a background thread pool
-        (void)QtConcurrent::run([this, jpegData, isRec, recDir, frameNum, doCrosshair, doEdge, doNightVision, doGray, doBlur, doInvert, doAutoFollow, trackHue, emitter, needsColorPick, pickX, pickY, doMotionTracking, prevGrayFrame, doAutoDrive, doFaceTracking, cascadeLoaded]() {
+        (void)QtConcurrent::run([this, jpegData, isRec, recDir, frameNum, doCrosshair, doEdge, doNightVision, doGray, doBlur, doInvert, doAutoFollow, trackHue, emitter, needsColorPick, pickX, pickY, pickWidgetW, pickWidgetH, doMotionTracking, prevGrayFrame, doAutoDrive, doFaceTracking, cascadeLoaded]() {
             // Decode JPEG with OpenCV
             std::vector<uchar> buffer(jpegData.begin(), jpegData.end());
             cv::Mat frame = cv::imdecode(buffer, cv::IMREAD_COLOR);
@@ -179,52 +204,83 @@ void VideoManager::onFrameDownloaded() {
                             
                             int frameCenter = frame.cols / 2;
                             int error = cx - frameCenter;
-                            int steering = (error * 32767) / frameCenter;
+                            int steering = (error * 1023) / frameCenter;
                             
-                            if (steering > 32767) steering = 32767;
-                            if (steering < -32767) steering = -32767;
+                            if (steering > 150) steering = 150;
+                            if (steering < -150) steering = -150;
                             
                             double targetArea = frame.cols * frame.rows * 0.15;
                             int throttle = 0;
-                            if (maxArea < targetArea * 0.7) {
-                                throttle = 25000;
+                            if (maxArea > frame.cols * frame.rows * 0.4) {
+                                // Global motion or noise, ignore
+                                steering = 0;
+                                throttle = 0;
+                            } else if (maxArea < targetArea * 0.7) {
+                                throttle = 100;
                             } else if (maxArea > targetArea * 1.3) {
-                                throttle = -25000;
+                                throttle = -100;
                             }
                             
                             if (emitter && doAutoDrive) {
-                                QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int16_t, steering));
-                                QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int16_t, throttle));
+                                QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int, steering));
+                                QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int, throttle));
                             }
                             
                             cv::putText(frame, "MOTION LOCKED", cv::Point(10, frame.rows - 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
                         } else {
                             if (emitter && doAutoDrive) {
-                                QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int16_t, 0));
-                                QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int16_t, 0));
+                                QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int, 0));
+                                QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int, 0));
                             }
                             cv::putText(frame, "SEARCHING MOTION...", cv::Point(10, frame.rows - 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 165, 255), 2);
                         }
                     } else {
                         if (emitter) {
-                            QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int16_t, 0));
-                            QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int16_t, 0));
-                        }
+                                QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int, 0));
+                                QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int, 0));
+                            }
                         cv::putText(frame, "INIT MOTION...", cv::Point(10, frame.rows - 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 165, 255), 2);
                     }
                 }
 
-                if (needsColorPick) {
-                    int x = qBound(0, static_cast<int>(pickX * frame.cols), frame.cols - 1);
-                    int y = qBound(0, static_cast<int>(pickY * frame.rows), frame.rows - 1);
+                if (needsColorPick && pickWidgetW > 0 && pickWidgetH > 0) {
+                    // Correct coordinate mapping for PreserveAspectCrop:
+                    // The image is cropped (centered) to fill the widget.
+                    // We need to find which part of the frame is actually visible.
+                    double frameAspect  = (double)frame.cols / frame.rows;
+                    double widgetAspect = pickWidgetW / pickWidgetH;
+                    double frameX, frameY; // pixel coords in the actual frame
+                    if (frameAspect > widgetAspect) {
+                        // Frame is wider than widget: left/right are cropped
+                        double visibleWidth = frame.rows * widgetAspect;
+                        double cropLeft = (frame.cols - visibleWidth) / 2.0;
+                        frameX = cropLeft + pickX * visibleWidth;
+                        frameY = pickY * frame.rows;
+                    } else {
+                        // Frame is taller than widget: top/bottom are cropped
+                        double visibleHeight = frame.cols / widgetAspect;
+                        double cropTop = (frame.rows - visibleHeight) / 2.0;
+                        frameX = pickX * frame.cols;
+                        frameY = cropTop + pickY * visibleHeight;
+                    }
+                    int x = qBound(0, (int)frameX, frame.cols - 1);
+                    int y = qBound(0, (int)frameY, frame.rows - 1);
                     cv::Mat hsv;
                     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
                     cv::Vec3b pixel = hsv.at<cv::Vec3b>(y, x);
-                    int pickedHue = pixel[0]; // Hue is first channel
-                    
-                    QMetaObject::invokeMethod(this, [this, pickedHue]() {
-                        setCvTrackHue(pickedHue);
+                    int pickedHue = pixel[0];
+                    // Also read BGR for the RGB swatch in UI
+                    cv::Vec3b bgrPx = frame.at<cv::Vec3b>(y, x);
+                    int pr = bgrPx[2], pg = bgrPx[1], pb = bgrPx[0];
+                    // Draw a marker on the picked point
+                    cv::circle(frame, cv::Point(x, y), 10, cv::Scalar(0, 255, 255), 2);
+                    QMetaObject::invokeMethod(this, [this, pickedHue, pr, pg, pb]() {
+                        m_cvTrackHue = pickedHue;
+                        m_cvTrackR = pr;
+                        m_cvTrackG = pg;
+                        m_cvTrackB = pb;
                         setCvPickColorActive(false);
+                        emit cvSettingsChanged();
                     }, Qt::QueuedConnection);
                 }
                 
@@ -232,21 +288,21 @@ void VideoManager::onFrameDownloaded() {
                     cv::Mat hsv, mask;
                     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
                     
-                    int lowerHue = trackHue - 10;
-                    int upperHue = trackHue + 10;
+                    int lowerHue = trackHue - 15;
+                    int upperHue = trackHue + 15;
                     
                     if (lowerHue < 0) {
                         cv::Mat mask1, mask2;
-                        cv::inRange(hsv, cv::Scalar(180 + lowerHue, 120, 70), cv::Scalar(180, 255, 255), mask1);
-                        cv::inRange(hsv, cv::Scalar(0, 120, 70), cv::Scalar(upperHue, 255, 255), mask2);
+                        cv::inRange(hsv, cv::Scalar(180 + lowerHue, 50, 50), cv::Scalar(180, 255, 255), mask1);
+                        cv::inRange(hsv, cv::Scalar(0, 50, 50), cv::Scalar(upperHue, 255, 255), mask2);
                         mask = mask1 | mask2;
                     } else if (upperHue > 180) {
                         cv::Mat mask1, mask2;
-                        cv::inRange(hsv, cv::Scalar(lowerHue, 120, 70), cv::Scalar(180, 255, 255), mask1);
-                        cv::inRange(hsv, cv::Scalar(0, 120, 70), cv::Scalar(upperHue - 180, 255, 255), mask2);
+                        cv::inRange(hsv, cv::Scalar(lowerHue, 50, 50), cv::Scalar(180, 255, 255), mask1);
+                        cv::inRange(hsv, cv::Scalar(0, 50, 50), cv::Scalar(upperHue - 180, 255, 255), mask2);
                         mask = mask1 | mask2;
                     } else {
-                        cv::inRange(hsv, cv::Scalar(lowerHue, 120, 70), cv::Scalar(upperHue, 255, 255), mask);
+                        cv::inRange(hsv, cv::Scalar(lowerHue, 50, 50), cv::Scalar(upperHue, 255, 255), mask);
                     }
                     
                     std::vector<std::vector<cv::Point>> contours;
@@ -272,29 +328,33 @@ void VideoManager::onFrameDownloaded() {
                         
                         int frameCenter = frame.cols / 2;
                         int error = cx - frameCenter;
-                        int steering = (error * 32767) / frameCenter;
+                        int steering = (error * 1023) / frameCenter;
                         
-                        if (steering > 32767) steering = 32767;
-                        if (steering < -32767) steering = -32767;
+                        if (steering > 150) steering = 150;
+                        if (steering < -150) steering = -150;
                         
                         double targetArea = frame.cols * frame.rows * 0.15;
                         int throttle = 0;
-                        if (maxArea < targetArea * 0.7) {
-                            throttle = 25000;
+                        if (maxArea > frame.cols * frame.rows * 0.4) {
+                            // Massive color match usually means blur or global shift, ignore
+                            steering = 0;
+                            throttle = 0;
+                        } else if (maxArea < targetArea * 0.7) {
+                            throttle = 100;
                         } else if (maxArea > targetArea * 1.3) {
-                            throttle = -25000;
+                            throttle = -100;
                         }
                         
                         if (emitter && doAutoDrive) {
-                            QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int16_t, steering));
-                            QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int16_t, throttle));
+                            QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int, steering));
+                            QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int, throttle));
                         }
                         
                         cv::putText(frame, "COLOR LOCKED", cv::Point(10, frame.rows - 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
                     } else {
                         if (emitter && doAutoDrive) {
-                            QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int16_t, 0));
-                            QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int16_t, 0));
+                            QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int, 0));
+                            QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int, 0));
                         }
                         cv::putText(frame, "SEARCHING COLOR...", cv::Point(10, frame.rows - 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
                     }
@@ -306,10 +366,10 @@ void VideoManager::onFrameDownloaded() {
                     cv::equalizeHist(gray, gray);
                     
                     std::vector<cv::Rect> faces;
-                    // This is safe since detectMultiScale is thread-safe for a const-like operation on a loaded cascade
-                    // We const_cast or just cast away since we captured `this` which gives us access to m_faceCascade.
-                    // Wait, m_faceCascade is accessible via `this->m_faceCascade`, which we can call directly.
-                    this->m_faceCascade.detectMultiScale(gray, faces, 1.1, 3, 0, cv::Size(30, 30));
+                    {
+                        std::lock_guard<std::mutex> lock(this->m_cascadeMutex);
+                        this->m_faceCascade.detectMultiScale(gray, faces, 1.1, 3, 0, cv::Size(30, 30));
+                    }
                     
                     if (!faces.empty()) {
                         cv::Rect largestFace = faces[0];
@@ -325,29 +385,32 @@ void VideoManager::onFrameDownloaded() {
                         
                         int frameCenter = frame.cols / 2;
                         int error = cx - frameCenter;
-                        int steering = (error * 32767) / frameCenter;
+                        int steering = (error * 1023) / frameCenter;
                         
-                        if (steering > 32767) steering = 32767;
-                        if (steering < -32767) steering = -32767;
+                        if (steering > 150) steering = 150;
+                        if (steering < -150) steering = -150;
                         
                         double targetArea = frame.cols * frame.rows * 0.10;
                         int throttle = 0;
-                        if (largestFace.area() < targetArea * 0.7) {
-                            throttle = 25000;
+                        if (largestFace.area() > frame.cols * frame.rows * 0.4) {
+                            steering = 0;
+                            throttle = 0;
+                        } else if (largestFace.area() < targetArea * 0.7) {
+                            throttle = 100;
                         } else if (largestFace.area() > targetArea * 1.3) {
-                            throttle = -25000;
+                            throttle = -100;
                         }
                         
                         if (emitter && doAutoDrive) {
-                            QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int16_t, steering));
-                            QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int16_t, throttle));
+                            QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int, steering));
+                            QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int, throttle));
                         }
                         
                         cv::putText(frame, "FACE LOCKED", cv::Point(10, frame.rows - 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
                     } else {
                         if (emitter && doAutoDrive) {
-                            QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int16_t, 0));
-                            QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int16_t, 0));
+                            QMetaObject::invokeMethod(emitter, "updateSteering", Qt::QueuedConnection, Q_ARG(int, 0));
+                            QMetaObject::invokeMethod(emitter, "updateThrottle", Qt::QueuedConnection, Q_ARG(int, 0));
                         }
                         cv::putText(frame, "SEARCHING FACE...", cv::Point(10, frame.rows - 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
                     }
@@ -416,8 +479,10 @@ void VideoManager::onFrameDownloaded() {
         });
         
     } else {
-        qWarning() << "VideoManager fetch error:" << m_reply->errorString();
-        emit errorOccurred(m_reply->errorString());
+        if (m_reply->error() != QNetworkReply::OperationCanceledError) {
+            qWarning() << "VideoManager fetch error:" << m_reply->errorString();
+            emit errorOccurred(m_reply->errorString());
+        }
     }
     
     m_reply->deleteLater();

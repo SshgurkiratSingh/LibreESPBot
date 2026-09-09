@@ -31,6 +31,7 @@ set(SOURCES
     src/network/VideoManager.cpp
     src/mapping/RadarPointCloud.cpp
     src/core/AppSettings.cpp
+    src/core/DebugLogger.cpp
     src/core/ScriptEngine.cpp
     src/core/JoystickHandler.cpp
     src/tools/PanoramaBuilder.cpp

@@ -4,7 +4,7 @@
 #pragma pack(push, 1)
 
 // Telemetry Frame sent by Rover at 50 Hz (MCU -> App)
-struct VehicleTelemetryPacket {
+struct __attribute__((packed)) VehicleTelemetryPacket {
     uint16_t preamble;        // 0xAA55
     uint8_t  hardwareRev;     // Hardware profile ID
     uint8_t  activeImuType;   // 0x01: MPU6050, 0x02: BMI160
@@ -31,15 +31,23 @@ struct VehicleTelemetryPacket {
     float    batteryVoltage;  // Scaled voltage (e.g. 11.1V - 12.6V)
     float    imuTempC;        // MPU-6050 Temperature in Celsius
 
+    // Environment (S3 Specific)
+    float    baroTempC;
+    float    baroPressurePa;
+    uint8_t  irArrayState;    // 7 bits used
+
     // Status Flags (Bit 0: Obstacle, Bit 1: Braking, Bit 2: Radar Active, Bit 3: FailSafe)
     uint16_t statusFlags;
     uint16_t crc16;           // CRC-16-CCITT across entire struct except crc16
 };
 
 // Actuation Frame sent by Controller at 50 Hz (App -> Rover)
-struct VehicleCommandPacket {
+struct __attribute__((packed)) VehicleCommandPacket {
     uint16_t preamble;        // 0x55AA
     uint16_t sequenceId;
+    uint8_t  enableAutoTurn;  // 1: Hardware closed-loop turn to heading
+    uint8_t  _pad0;           // alignment padding - keeps targetHeading 2-byte aligned
+    int16_t  targetHeading;   // 0-359 degrees
     int16_t  throttleAxis;    // -1023 to +1023
     int16_t  steeringAxis;    // -1023 to +1023
     

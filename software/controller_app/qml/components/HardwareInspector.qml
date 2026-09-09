@@ -112,6 +112,49 @@ Rectangle {
         
         Rectangle { Layout.fillWidth: true; height: 1; color: "#333333" }
         
+        // --- S3 ADVANCED SENSORS (Barometer & IR Array) ---
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            visible: typeof mainWindow !== "undefined" && mainWindow.boardModel === 1
+
+            // Barometer
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "BARO"; color: "#B0B0B0"; font.pixelSize: 11; font.bold: true; Layout.preferredWidth: 40 }
+                Item { Layout.fillWidth: true }
+                property real bTemp: telemetryClient ? telemetryClient.baroTempC : 0
+                property real bPress: telemetryClient ? telemetryClient.baroPressurePa : 0
+                Text { 
+                    text: parent.bTemp.toFixed(1) + "°C  " + (parent.bPress / 100.0).toFixed(2) + " hPa"
+                    color: "#E0E0E0"; font.family: "Monospace"; font.pixelSize: 11; font.bold: true 
+                }
+            }
+
+            // IR Array
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "IR"; color: "#B0B0B0"; font.pixelSize: 11; font.bold: true; Layout.preferredWidth: 40 }
+                property int irState: telemetryClient ? telemetryClient.irArrayState : 0
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Repeater {
+                        model: 7
+                        Rectangle {
+                            width: 12; height: 12; radius: 6
+                            color: (parent.parent.irState & (1 << index)) ? "#FF5722" : "#2A2A2A"
+                        }
+                    }
+                }
+            }
+        }
+        
+        Rectangle { 
+            Layout.fillWidth: true; height: 1; color: "#333333"
+            visible: typeof mainWindow !== "undefined" && mainWindow.boardModel === 1
+        }
+        
         // --- ATTITUDE INSTRUMENTS (Mini Artificial Horizon & Compass) ---
         RowLayout {
             Layout.fillWidth: true

@@ -1,5 +1,5 @@
 #include "CommandEmitter.hpp"
-
+#include <QDebug>
 CommandEmitter::CommandEmitter(QObject *parent) 
     : QObject(parent), m_socket(new QUdpSocket(this)), m_ownsSocket(true), m_timer(new QTimer(this)) {
     
@@ -78,6 +78,12 @@ void CommandEmitter::setCustomLedPattern(uint8_t pattern) {
     m_packet.customLedPattern = pattern;
 }
 
+
+void CommandEmitter::setAutoTurn(bool enable, float targetHeading) {
+    m_packet.enableAutoTurn = enable ? 1 : 0;
+    m_packet.targetHeading = static_cast<int16_t>(targetHeading);
+}
+
 void CommandEmitter::sendCommandPacket() {
     if (m_targetIp.isNull()) return;
 
@@ -87,7 +93,14 @@ void CommandEmitter::sendCommandPacket() {
     m_packet.crc16 = calculateCrc16(reinterpret_cast<const uint8_t*>(&m_packet), dataLen);
 
     QByteArray datagram(reinterpret_cast<const char*>(&m_packet), sizeof(VehicleCommandPacket));
-    m_socket->writeDatagram(datagram, m_targetIp, m_targetPort);
+    qint64 sent = m_socket->writeDatagram(datagram, m_targetIp, m_targetPort);
+    
+    // Log once per second (every 50 packets at 50Hz)
+    if (m_packet.sequenceId % 50 == 1) {
+        qDebug() << "[CMD] Sent" << sent << "bytes to" << m_targetIp.toString() << ":" << m_targetPort
+                 << "| pktSize:" << sizeof(VehicleCommandPacket)
+                 << "| seq:" << m_packet.sequenceId;
+    }
 }
 
 uint16_t CommandEmitter::calculateCrc16(const uint8_t *data, size_t length) {

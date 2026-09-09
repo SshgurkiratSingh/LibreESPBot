@@ -104,8 +104,56 @@ bool CompassDriver::readMag(int16_t& x, int16_t& y, int16_t& z) {
 
 float CompassDriver::getHeading() {
     int16_t x, y, z;
-    if (!readMag(x, y, z)) return 0.0f;
-    float h = atan2f(y, x) * 180.0f / PI;
-    if (h < 0.0f) h += 360.0f;
-    return h;
+    if (!readMag(x, y, z)) return (_headingEma < 0) ? 0.0f : _headingEma;
+
+    // ── Phase 1: Calibration accumulation ────────────────────────────────
+    // Update running min/max so we can compute the hard-iron bias offset.
+    // We only update as long as calibration is NOT frozen.
+    if (!_calFrozen) {
+        if (x < _minX) _minX = x;
+        if (x > _maxX) _maxX = x;
+        if (y < _minY) _minY = y;
+        if (y > _maxY) _maxY = y;
+
+        int16_t spanX = _maxX - _minX;
+        int16_t spanY = _maxY - _minY;
+
+        // Once we have seen enough physical variation (300 counts in both axes),
+        // lock in the offsets permanently.  This prevents motor EMI from
+        // polluting the calibration after startup.
+        if (spanX > 300 && spanY > 300) {
+            _offsetX = (_minX + _maxX) / 2;
+            _offsetY = (_minY + _maxY) / 2;
+            _calFrozen = true;
+            Serial.printf("[Compass] Calibration frozen: offsetX=%d offsetY=%d spanX=%d spanY=%d\n",
+                          _offsetX, _offsetY, spanX, spanY);
+        }
+    }
+
+    // ── Phase 2: Apply bias offset ────────────────────────────────────────
+    float calX = (float)(x - _offsetX);
+    float calY = (float)(y - _offsetY);
+
+    // ── Phase 3: Compute raw heading ──────────────────────────────────────
+    float rawHeading = atan2f(calY, calX) * 180.0f / PI;
+    if (rawHeading < 0.0f) rawHeading += 360.0f;
+
+    // ── Phase 4: EMA low-pass filter ──────────────────────────────────────
+    // α = 0.15 means heavy smoothing (each reading is only 15% of new value).
+    // This kills single-sample spikes from motor EMI without adding noticeable lag.
+    // Special handling for angle wrap-around (e.g. 359° → 1° should NOT average to 180°).
+    if (_headingEma < 0.0f) {
+        _headingEma = rawHeading; // First call — seed the filter
+    } else {
+        float diff = rawHeading - _headingEma;
+        // Unwrap: keep diff in (-180, +180]
+        if (diff > 180.0f)  diff -= 360.0f;
+        if (diff <= -180.0f) diff += 360.0f;
+
+        _headingEma += 0.15f * diff;
+        if (_headingEma < 0.0f)    _headingEma += 360.0f;
+        if (_headingEma >= 360.0f) _headingEma -= 360.0f;
+    }
+
+    return _headingEma;
 }

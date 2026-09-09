@@ -60,7 +60,7 @@ public slots:
                 }
             }
 
-            QThread::msleep(50); // Poll rate
+            QThread::msleep(10); // Poll rate (increased from 20Hz to 100Hz for better responsivity)
         }
         
         if (m_fd >= 0) {

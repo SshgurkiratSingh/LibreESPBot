@@ -56,7 +56,7 @@ CRGB ledsLeft[NUM_LEDS];
 CRGB ledsRight[NUM_LEDS];
 
 unsigned long lastTelemetryTime = 0;
-const unsigned long TELEMETRY_INTERVAL = 20; // 50 Hz
+const unsigned long TELEMETRY_INTERVAL = 50; // 20 Hz (Reduced from 50Hz to prevent UDP ENOMEM Error 12)
 
 unsigned long lastDiscoveryTime = 0;
 const unsigned long DISCOVERY_INTERVAL = 1000; // 1 Hz
@@ -69,8 +69,9 @@ void setup()
     Serial.begin(115200);
     Serial.println("Starting Rover Main Profile");
 
-    // Initialize I2C
+    // Initialize I2C with a timeout to prevent infinite freezing if a sensor crashes!
     Wire.begin(21, 22);
+    Wire.setTimeOut(100); // 100ms timeout prevents loop() from blocking forever
 
     // Initialize Sensors
     imuOk = imu.begin();
@@ -150,7 +151,6 @@ void setup()
     udp.begin(UDP_PORT);
     Serial.println("UDP listener started.");
 
-    // Init telemetry defaults
     memset(&telemetry, 0, sizeof(VehicleTelemetryPacket));
     telemetry.preamble = 0xAA55;
     telemetry.hardwareRev = 2; // V2
@@ -185,8 +185,30 @@ uint16_t calculateCrc16(const uint8_t *data, size_t length)
 // ============================================================
 void loop()
 {
-    // 1. Check for incoming UDP Commands
+    // 0. WiFi Watchdog: auto-reconnect if disconnected
+    static uint32_t lastWifiCheck = 0;
+    if (millis() - lastWifiCheck > 5000) { // Check every 5 seconds
+        lastWifiCheck = millis();
+        if (WiFi.status() != WL_CONNECTED) {
+            Serial.println("[WiFi] Disconnected! Reconnecting...");
+            WiFi.disconnect();
+            WiFi.begin("Airtel_Node", "air66343");
+            // Stop motors during reconnect for safety
+            baseLeftPwm = 0;
+            baseRightPwm = 0;
+        }
+    }
+
+    // 1. Non-blocking ToF sensor refresh (reads cached result from continuous mode)
+    tofSensors.update();
+
+    // 2. Check for incoming UDP Commands
     bool newCommandReceived = false;
+    static bool sizePrinted = false;
+    if (!sizePrinted) {
+        Serial.printf("Cmd Size: %d, Tel Size: %d\n", sizeof(VehicleCommandPacket), sizeof(VehicleTelemetryPacket));
+        sizePrinted = true;
+    }
     int packetSize = udp.parsePacket();
     while (packetSize > 0)
     {
@@ -210,30 +232,45 @@ void loop()
             remoteIP = udp.remoteIP();
             remotePort = udp.remotePort();
 
-            Serial.printf("Cmd RX | Throttle: %d, Steering: %d, AEB: %d, APF: %d\n",
-                          lastCommand.throttleAxis, lastCommand.steeringAxis,
-                          lastCommand.enableAutoBrake, lastCommand.enableApfAvoidance);
 
-            // Apply command to Automation Engine (Motors are NOT driven here anymore)
-            // They are driven safely inside autoEngine.update()
-            autoEngine.setAEB(lastCommand.enableAutoBrake);
-            autoEngine.setAPF(lastCommand.enableApfAvoidance);
 
-            float speedMult = 1.0f;
-            if (lastCommand.speedModeLimit == 0) speedMult = 0.15f;      // Crawl
-            else if (lastCommand.speedModeLimit == 1) speedMult = 0.3f; // Precision
-            else if (lastCommand.speedModeLimit == 2) speedMult = 0.7f; // Normal
-            else speedMult = 1.0f;                                      // Sport
+                // Manual Override: If the user touches the joystick, instantly abort hardware auto-turn
+                if (abs(lastCommand.throttleAxis) > 50 || abs(lastCommand.steeringAxis) > 50) {
+                    lastCommand.enableAutoTurn = 0;
+                }
 
-            baseLeftPwm = (lastCommand.throttleAxis + lastCommand.steeringAxis) * speedMult;
-            baseRightPwm = (lastCommand.throttleAxis - lastCommand.steeringAxis) * speedMult;
+                // Apply command to Automation Engine
+                autoEngine.setAEB(lastCommand.enableAutoBrake);
+                autoEngine.setAPF(lastCommand.enableApfAvoidance);
+                autoEngine.setAutoTurn(lastCommand.enableAutoTurn, lastCommand.targetHeading);
+
+                float speedMult = 1.0f;
+                if (lastCommand.speedModeLimit == 0) speedMult = 0.15f;      // Crawl
+                else if (lastCommand.speedModeLimit == 1) speedMult = 0.3f; // Precision
+                else if (lastCommand.speedModeLimit == 2) speedMult = 0.7f; // Normal
+                else speedMult = 1.0f;                                      // Sport
+
+                baseLeftPwm = (lastCommand.throttleAxis + lastCommand.steeringAxis) * speedMult;
+                baseRightPwm = (lastCommand.throttleAxis - lastCommand.steeringAxis) * speedMult;
         }
+    }
+
+    // Safety Failsafe: Turn off motors if no valid command received for 1 second
+    static uint32_t lastCommandTime = millis();
+    if (newCommandReceived && lastCommand.preamble == 0x55AA) {
+        lastCommandTime = millis();
+    }
+    
+    if (millis() - lastCommandTime > 1000) {
+        baseLeftPwm = 0;
+        baseRightPwm = 0;
+        lastCommand.enableAutoTurn = 0; // Disable auto-turn on disconnect
     }
 
     // 2. Automation Update (Mixes APF steering & AEB braking)
     int16_t currentLeft = baseLeftPwm;
     int16_t currentRight = baseRightPwm;
-    autoEngine.update(currentLeft, currentRight);
+    autoEngine.update(currentLeft, currentRight, telemetry.headingCompassDeg);
 
     if (!lastCommand.enableNoLagMode && lastCommand.enableRadarSweep)
     {

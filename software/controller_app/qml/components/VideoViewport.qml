@@ -1,5 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
 
 Rectangle {
     id: root
@@ -37,6 +38,13 @@ Rectangle {
         function onRecordingSaved(path) {
             console.log("Video saved to: " + path)
         }
+        // Sync RGB sliders when color is picked from screen
+        function onCvSettingsChanged() {
+            if (typeof videoManager === "undefined") return
+            rSlider.value = videoManager.cvTrackR
+            gSlider.value = videoManager.cvTrackG
+            bSlider.value = videoManager.cvTrackB
+        }
     }
 
     Image {
@@ -55,7 +63,8 @@ Rectangle {
                 if (typeof videoManager !== "undefined" && videoManager.cvPickColorActive) {
                     let xRatio = mouse.x / width
                     let yRatio = mouse.y / height
-                    videoManager.requestColorPick(xRatio, yRatio)
+                    // Pass actual widget dimensions so C++ can account for PreserveAspectCrop
+                    videoManager.requestColorPick(xRatio, yRatio, width, height)
                 }
             }
         }
@@ -77,7 +86,7 @@ Rectangle {
                 text: "CLICK ANYWHERE ON VIDEO TO PICK TARGET COLOR"
                 color: "#00FF00"
                 font.bold: true
-                font.pixelSize: 24
+                font.pixelSize: 22
                 style: Text.Outline
                 styleColor: "black"
                 horizontalAlignment: Text.AlignHCenter
@@ -95,7 +104,171 @@ Rectangle {
         }
     }
 
-    // Recording indicator and button
+    // ─── RGB Color Selection Panel ──────────────────────────────────────────
+    Rectangle {
+        id: colorPanel
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.margins: 10
+        width: 220
+        height: colorPanelCol.implicitHeight + 20
+        color: "#CC111111"
+        radius: 10
+        visible: root.isConnected && (typeof videoManager !== "undefined") &&
+                 (videoManager.cvAutoFollow)
+
+        ColumnLayout {
+            id: colorPanelCol
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+            spacing: 6
+
+            Text {
+                text: "TARGET COLOR"
+                color: "#00E5FF"
+                font.bold: true
+                font.pixelSize: 11
+                font.letterSpacing: 1
+            }
+
+            // Color swatch — shows the currently tracked color
+            Rectangle {
+                Layout.fillWidth: true
+                height: 26
+                radius: 5
+                color: (typeof videoManager !== "undefined")
+                    ? Qt.rgba(videoManager.cvTrackR / 255,
+                              videoManager.cvTrackG / 255,
+                              videoManager.cvTrackB / 255, 1)
+                    : "red"
+                border.color: "#555"
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: (typeof videoManager !== "undefined")
+                          ? "R:" + videoManager.cvTrackR + " G:" + videoManager.cvTrackG + " B:" + videoManager.cvTrackB
+                          : ""
+                    color: "white"
+                    font.pixelSize: 10
+                    style: Text.Outline
+                    styleColor: "black"
+                }
+            }
+
+            // R slider
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Text { text: "R"; color: "#FF5252"; font.bold: true; font.pixelSize: 11; Layout.preferredWidth: 12 }
+                Slider {
+                    id: rSlider
+                    Layout.fillWidth: true
+                    from: 0; to: 255; stepSize: 1
+                    value: typeof videoManager !== "undefined" ? videoManager.cvTrackR : 255
+                    onMoved: colorPanel.applyRgb()
+                }
+            }
+
+            // G slider
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Text { text: "G"; color: "#69F0AE"; font.bold: true; font.pixelSize: 11; Layout.preferredWidth: 12 }
+                Slider {
+                    id: gSlider
+                    Layout.fillWidth: true
+                    from: 0; to: 255; stepSize: 1
+                    value: typeof videoManager !== "undefined" ? videoManager.cvTrackG : 0
+                    onMoved: colorPanel.applyRgb()
+                }
+            }
+
+            // B slider
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Text { text: "B"; color: "#40C4FF"; font.bold: true; font.pixelSize: 11; Layout.preferredWidth: 12 }
+                Slider {
+                    id: bSlider
+                    Layout.fillWidth: true
+                    from: 0; to: 255; stepSize: 1
+                    value: typeof videoManager !== "undefined" ? videoManager.cvTrackB : 0
+                    onMoved: colorPanel.applyRgb()
+                }
+            }
+
+            // Buttons row
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Button {
+                    text: "🎯 Pick from Screen"
+                    Layout.fillWidth: true
+                    font.pixelSize: 10
+                    onClicked: {
+                        if (typeof videoManager !== "undefined") {
+                            videoManager.cvPickColorActive = true
+                        }
+                    }
+                    background: Rectangle {
+                        color: parent.pressed ? "#00796B" : "#004D40"
+                        radius: 4
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font: parent.font
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+            }
+
+            // Preset colors row
+            Text { text: "PRESETS"; color: "#888"; font.pixelSize: 9; font.letterSpacing: 1 }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Repeater {
+                    model: [
+                        { r: 220, g: 40,  b: 40,  label: "Red"    },
+                        { r: 40,  g: 180, b: 40,  label: "Green"  },
+                        { r: 40,  g: 40,  b: 220, label: "Blue"   },
+                        { r: 220, g: 220, b: 40,  label: "Yellow" },
+                        { r: 220, g: 100, b: 40,  label: "Orange" },
+                    ]
+                    Rectangle {
+                        width: 28; height: 22; radius: 4
+                        color: Qt.rgba(modelData.r/255, modelData.g/255, modelData.b/255, 1)
+                        border.color: "#555"; border.width: 1
+                        MouseArea {
+                            id: presetMA
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            ToolTip {
+                                text: modelData.label
+                                visible: presetMA.containsMouse
+                            }
+                            onClicked: {
+                                if (typeof videoManager !== "undefined") {
+                                    videoManager.setTrackColorRGB(modelData.r, modelData.g, modelData.b)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function applyRgb() {
+            if (typeof videoManager !== "undefined") {
+                videoManager.setTrackColorRGB(rSlider.value, gSlider.value, bSlider.value)
+            }
+        }
+    }
+
+    // ─── Recording indicator ────────────────────────────────────────────────
     Rectangle {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
@@ -117,7 +290,6 @@ Rectangle {
                 color: (typeof videoManager !== "undefined" && videoManager.isRecording) ? "#FF1744" : "#888888"
                 anchors.verticalCenter: parent.verticalCenter
                 
-                // Pulsing animation when recording
                 SequentialAnimation on opacity {
                     running: typeof videoManager !== "undefined" && videoManager.isRecording
                     loops: Animation.Infinite
@@ -145,6 +317,7 @@ Rectangle {
         }
     }
 
+    // ─── Offline message ────────────────────────────────────────────────────
     Rectangle {
         anchors.centerIn: parent
         width: offlineColumn.implicitWidth + 40

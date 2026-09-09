@@ -40,7 +40,7 @@ Rectangle {
             ComboBox {
                 id: exampleCombo
                 Layout.fillWidth: true
-                model: ["Custom", "Square Pattern", "Figure 8 (Steering Test)", "Sensor Test (Stop & Scan)"]
+                model: ["Custom", "Square Pattern", "Figure 8 (Steering Test)", "Sensor Test (Stop & Scan)", "Compass Turn (North)", "Compass Turn (South)"]
                 onActivated: {
                     if (currentIndex === 1) {
                         scriptEditor.text = "forward(50)\nwait(1000)\nsteer(100)\nwait(500)\nsteer(0)\nforward(50)\nwait(1000)\nstop()";
@@ -48,6 +48,10 @@ Rectangle {
                         scriptEditor.text = "forward(40)\nsteer(50)\nwait(2000)\nsteer(-50)\nwait(2000)\nstop()";
                     } else if (currentIndex === 3) {
                         scriptEditor.text = "forward(30)\nwait(500)\nstop()\nwait(2000)\nreverse(30)\nwait(500)\nstop()";
+                    } else if (currentIndex === 4) {
+                        scriptEditor.text = "// Turn to face North (0°) using compass feedback\n// Tolerance: ±5°, auto-ramps speed if stuck\nturn_to(0)\nwait(500)\nforward(50)\nwait(2000)\nstop()";
+                    } else if (currentIndex === 5) {
+                        scriptEditor.text = "// Turn to face South (180°) then drive\nturn_to(180)\nwait(500)\nforward(50)\nwait(2000)\nstop()";
                     }
                 }
             }
@@ -69,7 +73,7 @@ Rectangle {
                     color: "#00FF00"
                     font.family: "Monospace"
                     font.pixelSize: 14
-                    text: "// Write your script here\n// Commands: forward(p), reverse(p), steer(p), wait(ms), stop()\nforward(50)\nwait(1000)\nstop()"
+                    text: "// Write your script here\n// Commands:\n//   forward(p)     — throttle forward p% (0-100)\n//   reverse(p)     — throttle reverse p% (0-100)\n//   steer(p)       — steering p% (-100 left, +100 right)\n//   wait(ms)       — pause for ms milliseconds\n//   stop()         — stop throttle\n//   headlight(n)   — set headlight mode (0-6)\n//   turn_to(deg)   — rotate to compass heading (0-359, ±5° tolerance)\nforward(50)\nwait(1000)\nstop()"
                     background: null
                 }
                 ScrollBar.vertical: ScrollBar { }

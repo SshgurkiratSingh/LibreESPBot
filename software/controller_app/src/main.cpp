@@ -7,6 +7,8 @@
 #include "network/DiscoveryWorker.hpp"
 #include "network/VideoManager.hpp"
 #include "mapping/RadarPointCloud.hpp"
+#include "core/Types.hpp"
+#include "core/DebugLogger.hpp"
 #include "core/AppSettings.hpp"
 #include "core/ScriptEngine.hpp"
 #include "core/JoystickHandler.hpp"
@@ -29,6 +31,8 @@ int main(int argc, char *argv[])
     app.setOrganizationName("LibreESP");
     app.setOrganizationDomain("libreesp.org");
     app.setApplicationName("LibreESPBot");
+
+    qInstallMessageHandler(customMessageHandler);
 
     QQmlApplicationEngine engine;
 
@@ -74,7 +78,7 @@ int main(int argc, char *argv[])
     VideoManager videoManager;
     RadarPointCloud radarCloud;
     AppSettings appSettings;
-    ScriptEngine scriptEngine(&commandEmitter);
+    ScriptEngine scriptEngine(&commandEmitter, &telemetryClient);
     JoystickHandler joystickHandler;
     PanoramaBuilder panoramaBuilder(&commandEmitter, &telemetryClient, &videoManager);
     TurningCalibrator turningCalibrator(&commandEmitter, &telemetryClient);
@@ -88,6 +92,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("videoManager", &videoManager);
     engine.rootContext()->setContextProperty("radarCloud", &radarCloud);
     engine.rootContext()->setContextProperty("appSettings", &appSettings);
+    engine.rootContext()->setContextProperty("DebugLogger", DebugLogger::instance());
     engine.rootContext()->setContextProperty("scriptEngine", &scriptEngine);
     engine.rootContext()->setContextProperty("joystickHandler", &joystickHandler);
     engine.rootContext()->setContextProperty("panoramaBuilder", &panoramaBuilder);
@@ -96,6 +101,10 @@ int main(int argc, char *argv[])
     // Start networking layers
     discoveryWorker.startDiscovery();
     telemetryClient.startListening(8889);
+    
+    // Diagnostic: print expected struct sizes so we can verify firmware/app agreement
+    qDebug() << "[DIAG] sizeof(VehicleTelemetryPacket) =" << sizeof(VehicleTelemetryPacket);
+    qDebug() << "[DIAG] sizeof(VehicleCommandPacket)   =" << sizeof(VehicleCommandPacket);
     
     // Bind settings
     videoManager.setTargetFps(appSettings.cameraFps());

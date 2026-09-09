@@ -3,8 +3,20 @@
 #include <QDebug>
 
 TelemetryClient::TelemetryClient(QObject *parent) 
-    : QObject(parent), m_socket(new QUdpSocket(this)), m_lastPacketTime(0) {
+    : QObject(parent)
+    , m_socket(new QUdpSocket(this))
+    , m_lastPacketTime(0)
+    , m_connected(false)
+    , m_logRateLimit(0)
+{
     memset(&m_packet, 0, sizeof(VehicleTelemetryPacket));
+
+    // Watchdog: check every 500ms whether we've heard from the rover recently.
+    // If 2500ms pass with no valid packet → declare connection lost.
+    m_watchdogTimer = new QTimer(this);
+    m_watchdogTimer->setInterval(500);
+    connect(m_watchdogTimer, &QTimer::timeout, this, &TelemetryClient::checkConnectionHealth);
+    m_watchdogTimer->start();
 }
 
 TelemetryClient::~TelemetryClient() {
@@ -41,17 +53,55 @@ void TelemetryClient::readPendingDatagrams() {
             
             if (computedCrc == packet.crc16) {
                 qint64 now = QDateTime::currentMSecsSinceEpoch();
-                qint64 interval = (m_lastPacketTime == 0) ? 0 : (now - m_lastPacketTime);
+
+                // Mark connection as established
+                if (!m_connected) {
+                    m_connected = true;
+                    emit connectionStateChanged();
+                }
                 m_packet = packet;
                 m_lastPacketTime = now;
+                
+                QString ip = datagram.senderAddress().toString();
+                if (ip.startsWith("::ffff:")) ip = ip.mid(7); // Normalize IPv4-mapped IPv6
+                if (!m_discoveredIps.contains(ip)) {
+                    m_discoveredIps.append(ip);
+                    emit discoveredIpsChanged();
+                    emit botDiscovered(ip);
+                }
+                
                 emit telemetryUpdated();
-                qDebug() << "[Telemetry] Valid packet. Size:" << data.size() << "Interval since last:" << interval << "ms";
+
+                // Rate-limited debug log: print at most once per second to avoid UI thread spam
+                if (now - m_logRateLimit > 1000) {
+                    m_logRateLimit = now;
+                    qDebug() << "[Telemetry] OK — seq:" << packet.timestampMs
+                             << "| size:" << data.size()
+                             << "| battery:" << packet.batteryVoltage << "V";
+                }
             } else {
-                qWarning() << "[Telemetry] CRC mismatch. Computed:" << Qt::hex << computedCrc << "Received:" << packet.crc16;
+                qWarning() << "[Telemetry] CRC mismatch. Computed:" << Qt::hex << computedCrc
+                           << "Received:" << packet.crc16;
             }
         } else {
-            qWarning() << "[Telemetry] Dropped packet! Size mismatch. Expected:" << sizeof(VehicleTelemetryPacket) << "Got:" << data.size();
+            qWarning() << "[Telemetry] Dropped packet! Size mismatch. Expected:"
+                       << sizeof(VehicleTelemetryPacket) << "Got:" << data.size();
         }
+    }
+}
+
+void TelemetryClient::checkConnectionHealth() {
+    if (m_lastPacketTime == 0) return; // Never received any packet yet — not connected
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    qint64 silence = now - m_lastPacketTime;
+
+    // 2500ms silence = rover disconnected (the rover sends at 20Hz, so 50ms per packet;
+    // 2500ms = 50 missed packets — definitely not just a hiccup)
+    if (silence > 2500 && m_connected) {
+        m_connected = false;
+        emit connectionStateChanged();
+        emit connectionLost();
+        qWarning() << "[Telemetry] Connection lost! No packet for" << silence << "ms";
     }
 }
 

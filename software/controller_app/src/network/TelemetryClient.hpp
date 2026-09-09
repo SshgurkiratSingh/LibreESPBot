@@ -3,17 +3,23 @@
 #include <QObject>
 #include <QUdpSocket>
 #include <QNetworkDatagram>
+#include <QVariant>
+#include <QTimer>
 #include "../core/Types.hpp"
 
 class TelemetryClient : public QObject {
     Q_OBJECT
     
+    Q_PROPERTY(QVariantList discoveredIps READ discoveredIps NOTIFY discoveredIpsChanged)
     Q_PROPERTY(float pitch READ pitch NOTIFY telemetryUpdated)
     Q_PROPERTY(float roll READ roll NOTIFY telemetryUpdated)
     Q_PROPERTY(float yaw READ yaw NOTIFY telemetryUpdated)
     Q_PROPERTY(float headingCompassDeg READ headingCompassDeg NOTIFY telemetryUpdated)
     Q_PROPERTY(float batteryVoltage READ batteryVoltage NOTIFY telemetryUpdated)
     Q_PROPERTY(float imuTempC READ imuTempC NOTIFY telemetryUpdated)
+    Q_PROPERTY(float baroTempC READ baroTempC NOTIFY telemetryUpdated)
+    Q_PROPERTY(float baroPressurePa READ baroPressurePa NOTIFY telemetryUpdated)
+    Q_PROPERTY(int irArrayState READ irArrayState NOTIFY telemetryUpdated)
     Q_PROPERTY(int tof1DistMm READ tof1DistMm NOTIFY telemetryUpdated)
     Q_PROPERTY(int tof2DistMm READ tof2DistMm NOTIFY telemetryUpdated)
     Q_PROPERTY(int servoAngleDeg READ servoAngleDeg NOTIFY telemetryUpdated)
@@ -25,20 +31,27 @@ class TelemetryClient : public QObject {
     Q_PROPERTY(int activeImuType READ activeImuType NOTIFY telemetryUpdated)
     Q_PROPERTY(int activeMagType READ activeMagType NOTIFY telemetryUpdated)
     Q_PROPERTY(int statusFlags READ statusFlags NOTIFY telemetryUpdated)
+    Q_PROPERTY(bool connected READ connected NOTIFY connectionStateChanged)
 
 public:
     explicit TelemetryClient(QObject *parent = nullptr);
     ~TelemetryClient();
 
     void startListening(quint16 port = 8889);
+    bool connected() const { return m_connected; }
     QUdpSocket* socket() const { return m_socket; }
     
+    QVariantList discoveredIps() const { return m_discoveredIps; }
+
     float pitch() const { return m_packet.pitchDeg; }
     float roll() const { return m_packet.rollDeg; }
     float yaw() const { return m_packet.yawDeg; }
     float headingCompassDeg() const { return m_packet.headingCompassDeg; }
     float batteryVoltage() const { return m_packet.batteryVoltage; }
     float imuTempC() const { return m_packet.imuTempC; }
+    float baroTempC() const { return m_packet.baroTempC; }
+    float baroPressurePa() const { return m_packet.baroPressurePa; }
+    int irArrayState() const { return m_packet.irArrayState; }
     int tof1DistMm() const { return m_packet.tof1DistMm; }
     int tof2DistMm() const { return m_packet.tof2DistMm; }
     int servoAngleDeg() const { return m_packet.servoAngleDeg; }
@@ -54,9 +67,13 @@ public:
 signals:
     void telemetryUpdated();
     void connectionLost();
+    void connectionStateChanged();
+    void discoveredIpsChanged();
+    void botDiscovered(QString ip);
 
 private slots:
     void readPendingDatagrams();
+    void checkConnectionHealth();
 
 private:
     uint16_t calculateCrc16(const uint8_t *data, size_t length);
@@ -64,4 +81,8 @@ private:
     QUdpSocket *m_socket;
     VehicleTelemetryPacket m_packet;
     qint64 m_lastPacketTime;
+    QVariantList m_discoveredIps;
+    QTimer *m_watchdogTimer;
+    bool m_connected;
+    qint64 m_logRateLimit; // For rate-limiting debug spam
 };

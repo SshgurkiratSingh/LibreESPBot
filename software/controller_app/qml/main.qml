@@ -22,24 +22,79 @@ Window {
     Material.theme: Material.Dark
     Material.accent: Material.Green
 
+    // Board Configuration
+    property int boardModel: 0 // 0: ESP32 (Standard), 1: ESP32-S3 (Advanced)
+
     // Keyboard Input State
     property int previousSpeedMode: 1
     
     property bool enable3dKinematics: false
     property bool reverseTofSensors: false
+    property bool hardwareJoystickEnabled: true
     property real voltageMultiplier: (typeof appSettings !== "undefined") ? appSettings.voltageScaleMultiplier : 1.0
 
     property double lastTelemetryTime: 0
     property bool isConnected: false
 
+    // isConnected is now driven by the C++ TelemetryClient watchdog signal (connectionLost / connectionStateChanged)
+    // The JS Timer below is kept only as a fallback UI refresh for battery/latency display
     Timer {
         id: connectionWatchdog
         interval: 500
         running: true
         repeat: true
         onTriggered: {
-            mainWindow.isConnected = (Date.now() - mainWindow.lastTelemetryTime) < 1500;
+            // Sync isConnected with the authoritative C++ property
+            if (typeof telemetryClient !== "undefined") {
+                var wasConnected = mainWindow.isConnected;
+                mainWindow.isConnected = telemetryClient.connected;
+                // Reconnected! Restart the command emitter
+                if (!wasConnected && telemetryClient.connected) {
+                    console.log("[App] Rover reconnected — restarting command emitter.");
+                    if (typeof commandEmitter !== "undefined") {
+                        commandEmitter.startEmitting(20);
+                    }
+                    disconnectBanner.visible = false;
+                }
+            }
         }
+    }
+
+    // Disconnect Banner (shown for 4 seconds on connection loss)
+    Rectangle {
+        id: disconnectBanner
+        visible: false
+        z: 999
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 20
+        width: 460
+        height: 56
+        radius: 28
+        color: "#CC1a1a1a"
+        border.color: "#FF4444"
+        border.width: 2
+
+        Row {
+            anchors.centerIn: parent
+            spacing: 12
+            Text { text: "⚠"; font.pixelSize: 22; color: "#FF4444" }
+            Text {
+                text: "Rover disconnected — motors stopped!"
+                color: "#FFFFFF"
+                font.pixelSize: 15
+                font.bold: true
+                verticalAlignment: Text.AlignVCenter
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
+    Timer {
+        id: disconnectBannerTimer
+        interval: 4000
+        repeat: false
+        onTriggered: disconnectBanner.visible = false
     }
 
     onActiveChanged: {
@@ -64,6 +119,18 @@ Window {
 
     Connections {
         target: typeof telemetryClient !== "undefined" ? telemetryClient : null
+        function onBotDiscovered(ip) {
+            var found = false;
+            for (var i = 0; i < botListModel.count; i++) {
+                if (botListModel.get(i).ip === ip) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                botListModel.append({ display: "Bot (" + ip + ")", ip: ip });
+            }
+        }
         function onTelemetryUpdated() {
             if (!telemetryClient) return;
             
@@ -116,14 +183,27 @@ Window {
             radarDataMap = tempMap; // Reassign to maintain state safely
             currentRadarPoints = newPoints;
         }
+        function onConnectionLost() {
+            console.warn("[App] Connection to rover LOST! Stopping command emitter.");
+            // Immediately zero out all motor commands to prevent any residual movement
+            if (typeof commandEmitter !== "undefined" && commandEmitter !== null) {
+                commandEmitter.updateThrottle(0);
+                commandEmitter.updateSteering(0);
+                commandEmitter.stopEmitting();
+            }
+            // Show a visible banner to the user
+            disconnectBanner.visible = true;
+            disconnectBannerTimer.restart();
+        }
     }
 
     Connections {
         target: typeof joystickHandler !== "undefined" ? joystickHandler : null
         
         function onMappedAxisChanged(actionName, value) {
+            if (!mainWindow.hardwareJoystickEnabled) return;
             if (typeof commandEmitter !== "undefined") {
-                if (Math.abs(value) < 0.05) value = 0; // Deadzone to prevent drift
+                if (Math.abs(value) < 0.15) value = 0; // Deadzone (increased to 15%) to prevent analog drift
                 
                 if (actionName === "Throttle") {
                     // Don't let gamepad at rest overwrite keyboard input
@@ -140,6 +220,7 @@ Window {
         }
         
         function onMappedButtonChanged(actionName, pressed) {
+            if (!mainWindow.hardwareJoystickEnabled) return;
             if (pressed) {
                 if (actionName === "Brake") aebSwitch.checked = !aebSwitch.checked;
                 else if (actionName === "Radar") radarSwitch.checked = !radarSwitch.checked;
@@ -468,6 +549,22 @@ Window {
                                 }
                             }
 
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text { text: "Hardware Gamepad"; color: "#E0E0E0"; font.pixelSize: 13; Layout.fillWidth: true }
+                                Switch {
+                                    id: hwJoystickSwitch
+                                    checked: mainWindow.hardwareJoystickEnabled
+                                    onCheckedChanged: {
+                                        mainWindow.hardwareJoystickEnabled = checked;
+                                        if (!checked && typeof commandEmitter !== "undefined") {
+                                            commandEmitter.updateThrottle(0);
+                                            commandEmitter.updateSteering(0);
+                                        }
+                                    }
+                                }
+                            }
+
                             // --- AUTOMATION & SAFETY ---
                             Item { Layout.fillWidth: true; height: 10 }
                             Text { text: "AUTOMATION & SAFETY"; color: "#B0B0B0"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1 }
@@ -651,6 +748,7 @@ Window {
                 TabButton { text: "HUD Profile" }
                 TabButton { text: "Shortcuts" }
                 TabButton { text: "Computer Vision" }
+                TabButton { text: "Debug Log" }
             }
 
             SwipeView {
@@ -670,6 +768,27 @@ Window {
                         spacing: 15
 
                         Text { text: "Network Connection"; color: "white"; font.bold: true; Layout.topMargin: 10 }
+                        
+                        Text { text: "Board Model Configuration"; color: "gray"; font.pixelSize: 12 }
+                        ComboBox {
+                            id: boardSelector
+                            Layout.fillWidth: true
+                            model: ["ESP32 (Standard)", "ESP32-S3 (Advanced)"]
+                            currentIndex: mainWindow.boardModel
+                            onActivated: mainWindow.boardModel = currentIndex
+                        }
+                        
+                        Text { text: "Discovered Rovers"; color: "gray"; font.pixelSize: 12 }
+                        ComboBox {
+                            id: botSelector
+                            Layout.fillWidth: true
+                            textRole: "display"
+                            model: ListModel {
+                                id: botListModel
+                                ListElement { display: "Discovered list..."; ip: "" }
+                            }
+                        }
+                        
                         Text { text: "Rover IP Override"; color: "gray"; font.pixelSize: 12 }
                         TextField {
                             Layout.fillWidth: true
@@ -1177,6 +1296,54 @@ Window {
                             }
                         }
                         Item { Layout.fillHeight: true } // spacer
+                    }
+                }
+
+                // --- TAB 7: Debug Log ---
+                ScrollView {
+                    contentWidth: availableWidth
+                    clip: true
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 10
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Application Debug Log"; color: "white"; font.bold: true }
+                            Item { Layout.fillWidth: true }
+                            Button {
+                                text: "Clear"
+                                onClicked: typeof DebugLogger !== "undefined" ? DebugLogger.clear() : null
+                            }
+                        }
+                        
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 400
+                            color: "#111"
+                            border.color: "#444"
+                            clip: true
+
+                            ListView {
+                                id: debugLogList
+                                anchors.fill: parent
+                                anchors.margins: 5
+                                model: typeof DebugLogger !== "undefined" ? DebugLogger.logMessages : []
+                                delegate: Text {
+                                    width: debugLogList.width
+                                    text: modelData
+                                    color: {
+                                        if (text.indexOf("[Warning]") !== -1) return "yellow"
+                                        if (text.indexOf("[Critical]") !== -1) return "red"
+                                        return "#aaa"
+                                    }
+                                    font.pixelSize: 12
+                                    font.family: "monospace"
+                                    wrapMode: Text.Wrap
+                                }
+                                onCountChanged: debugLogList.positionViewAtEnd()
+                            }
+                        }
                     }
                 }
             }

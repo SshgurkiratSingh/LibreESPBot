@@ -9,6 +9,7 @@
 #include <QProcess>
 #include <opencv2/core.hpp>
 #include <opencv2/objdetect.hpp>
+#include <mutex>
 
 class CommandEmitter;
 
@@ -29,6 +30,9 @@ class VideoManager : public QObject {
     // Tracking Features
     Q_PROPERTY(bool cvAutoFollow READ cvAutoFollow WRITE setCvAutoFollow NOTIFY cvSettingsChanged)
     Q_PROPERTY(int cvTrackHue READ cvTrackHue WRITE setCvTrackHue NOTIFY cvSettingsChanged)
+    Q_PROPERTY(int cvTrackR READ cvTrackR NOTIFY cvSettingsChanged)
+    Q_PROPERTY(int cvTrackG READ cvTrackG NOTIFY cvSettingsChanged)
+    Q_PROPERTY(int cvTrackB READ cvTrackB NOTIFY cvSettingsChanged)
     Q_PROPERTY(bool cvPickColorActive READ cvPickColorActive WRITE setCvPickColorActive NOTIFY cvSettingsChanged)
     Q_PROPERTY(bool cvMotionTracking READ cvMotionTracking WRITE setCvMotionTracking NOTIFY cvSettingsChanged)
     Q_PROPERTY(bool cvFaceTracking READ cvFaceTracking WRITE setCvFaceTracking NOTIFY cvSettingsChanged)
@@ -38,7 +42,9 @@ public:
     explicit VideoManager(QObject *parent = nullptr);
     void setCommandEmitter(CommandEmitter* emitter) { m_commandEmitter = emitter; }
     
-    Q_INVOKABLE void requestColorPick(double xRatio, double yRatio);
+    Q_INVOKABLE void requestColorPick(double xRatio, double yRatio,
+                                      double widgetW, double widgetH);
+    Q_INVOKABLE void setTrackColorRGB(int r, int g, int b);
     
     bool isRecording() const { return m_isRecording; }
     QString currentFrameBase64() const { return m_currentFrameBase64; }
@@ -68,6 +74,10 @@ public:
     
     int cvTrackHue() const { return m_cvTrackHue; }
     void setCvTrackHue(int hue);
+
+    int cvTrackR() const { return m_cvTrackR; }
+    int cvTrackG() const { return m_cvTrackG; }
+    int cvTrackB() const { return m_cvTrackB; }
     
     bool cvPickColorActive() const { return m_cvPickColorActive; }
     void setCvPickColorActive(bool enabled);
@@ -124,14 +134,23 @@ private:
     bool m_cvMotionTracking = false;
     bool m_cvFaceTracking = false;
     bool m_cvAutoDrive = false;
-    int m_cvTrackHue = 0; // 0 = Red
+    int m_cvTrackHue = 0;   // OpenCV HSV hue (0-180)
+    int m_cvTrackR = 255;   // RGB preview for UI
+    int m_cvTrackG = 0;
+    int m_cvTrackB = 0;
+    
+    int m_frameWidth  = 0;  // actual JPEG frame size for coordinate mapping
+    int m_frameHeight = 0;
     
     cv::Mat m_prevGrayFrame;
     cv::CascadeClassifier m_faceCascade;
+    mutable std::mutex m_cascadeMutex;
     bool m_faceCascadeLoaded = false;
     
     bool m_cvPickColorActive = false;
     bool m_needsColorPick = false;
     double m_pickX = 0.0;
     double m_pickY = 0.0;
+    double m_pickWidgetW = 0.0;
+    double m_pickWidgetH = 0.0;
 };
