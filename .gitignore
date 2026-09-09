@@ -9,3 +9,4 @@ Makefile
 *.a
 *.map
 build_release/
+release/

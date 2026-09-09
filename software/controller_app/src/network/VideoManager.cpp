@@ -437,7 +437,7 @@ void VideoManager::onFrameDownloaded() {
                     std::vector<cv::Mat> channels;
                     cv::split(frame, channels);
                     channels[0] *= 0.2; // Blue down
-                    channels[1] = cv::min(channels[1] * 1.5, 255.0); // Green up
+                    channels[1] = cv::min(cv::Mat(channels[1] * 1.5), 255.0); // Green up
                     channels[2] *= 0.2; // Red down
                     cv::merge(channels, frame);
                 }
