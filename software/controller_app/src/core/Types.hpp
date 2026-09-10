@@ -4,7 +4,7 @@
 #pragma pack(push, 1)
 
 // Telemetry Frame sent by Rover at 50 Hz (MCU -> App)
-struct __attribute__((packed)) VehicleTelemetryPacket {
+struct VehicleTelemetryPacket {
     uint16_t preamble;        // 0xAA55
     uint8_t  hardwareRev;     // Hardware profile ID
     uint8_t  activeImuType;   // 0x01: MPU6050, 0x02: BMI160
@@ -42,7 +42,7 @@ struct __attribute__((packed)) VehicleTelemetryPacket {
 };
 
 // Actuation Frame sent by Controller at 50 Hz (App -> Rover)
-struct __attribute__((packed)) VehicleCommandPacket {
+struct VehicleCommandPacket {
     uint16_t preamble;        // 0x55AA
     uint16_t sequenceId;
     uint8_t  enableAutoTurn;  // 1: Hardware closed-loop turn to heading
