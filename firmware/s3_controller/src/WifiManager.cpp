@@ -103,6 +103,11 @@ void WifiManager::parseCmdSocket() {
 }
 
 void WifiManager::handlePing(const LbpPingPacket& ping, IPAddress from, uint16_t port) {
+    // A PING establishes/maintains the client session just like a CMD
+    m_clientIP   = from;
+    m_clientPort = port;
+    m_lastCmdMs  = millis();
+
     LbpPongPacket pong;
     pong.preamble = LBP_PREAMBLE_PONG;
     pong.seqId = ping.seqId;

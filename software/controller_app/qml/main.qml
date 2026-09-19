@@ -119,18 +119,7 @@ Window {
 
     Connections {
         target: typeof telemetryClient !== "undefined" ? telemetryClient : null
-        function onBotDiscovered(ip) {
-            var found = false;
-            for (var i = 0; i < botListModel.count; i++) {
-                if (botListModel.get(i).ip === ip) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                botListModel.append({ display: "Bot (" + ip + ")", ip: ip });
-            }
-        }
+
         function onTelemetryUpdated() {
             if (!telemetryClient) return;
             
@@ -778,25 +767,91 @@ Window {
                             onActivated: mainWindow.boardModel = currentIndex
                         }
                         
-                        Text { text: "Discovered Rovers"; color: "gray"; font.pixelSize: 12 }
-                        ComboBox {
-                            id: botSelector
+                        Text { text: "Discovered Rovers Network"; color: "gray"; font.pixelSize: 12 }
+                        
+                        ListView {
+                            id: botListView
                             Layout.fillWidth: true
-                            textRole: "display"
-                            model: ListModel {
-                                id: botListModel
-                                ListElement { display: "Discovered list..."; ip: "" }
+                            Layout.preferredHeight: 200
+                            clip: true
+                            model: typeof nodeRegistry !== "undefined" ? nodeRegistry : null
+                            spacing: 8
+                            
+                            delegate: Rectangle {
+                                width: ListView.view.width
+                                height: 70
+                                radius: 8
+                                color: (typeof nodeRegistry !== "undefined" && nodeRegistry.activeIndex === index) ? "#2A4030" : "#333333"
+                                border.color: (typeof nodeRegistry !== "undefined" && nodeRegistry.activeIndex === index) ? "#00E676" : "#444"
+                                border.width: (typeof nodeRegistry !== "undefined" && nodeRegistry.activeIndex === index) ? 2 : 1
+                                
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 10
+                                    spacing: 15
+                                    
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+                                        
+                                        RowLayout {
+                                            Text {
+                                                text: model.boardName + " (" + model.ip + ")"
+                                                color: "white"
+                                                font.bold: true
+                                                font.pixelSize: 14
+                                            }
+                                            Text {
+                                                text: "v" + model.fwVersion
+                                                color: model.versionMismatch ? "#FF4444" : "#AAAAAA"
+                                                font.pixelSize: 12
+                                            }
+                                        }
+                                        
+                                        RowLayout {
+                                            Text {
+                                                text: model.statusText
+                                                color: model.connected ? "#00E676" : (model.statusText === "STALE" ? "#888888" : "#FFBB33")
+                                                font.pixelSize: 11
+                                                font.bold: true
+                                            }
+                                            Text {
+                                                text: " • RTT: " + (model.rttMs >= 0 ? model.rttMs + "ms" : "---")
+                                                color: "#888888"
+                                                font.pixelSize: 11
+                                                visible: model.connected
+                                            }
+                                            Text {
+                                                text: " • Bat: " + model.battery.toFixed(2) + "V"
+                                                color: "#888888"
+                                                font.pixelSize: 11
+                                                visible: model.battery > 0
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        if (typeof nodeRegistry !== "undefined") {
+                                            nodeRegistry.selectNode(index);
+                                        }
+                                    }
+                                }
                             }
+                            
+                            // Scrollbar
+                            ScrollBar.vertical: ScrollBar {}
                         }
                         
-                        Text { text: "Rover IP Override"; color: "gray"; font.pixelSize: 12 }
+                        Text { text: "Rover IP Override (Manual)"; color: "gray"; font.pixelSize: 12; Layout.topMargin: 10 }
                         TextField {
                             Layout.fillWidth: true
                             placeholderText: "e.g., 192.168.4.1"
                             onEditingFinished: {
-                                if (text.length > 0 && typeof discoveryWorker !== "undefined" && typeof commandEmitter !== "undefined") {
-                                    discoveryWorker.setManualIp(text);
-                                    commandEmitter.setTargetAddress(text, 8888);
+                                if (text.length > 0 && typeof nodeRegistry !== "undefined") {
+                                    nodeRegistry.addManualNode(text);
                                 }
                             }
                         }

@@ -29,6 +29,8 @@ set(SOURCES
     src/network/CommandEmitter.cpp
     src/network/DiscoveryWorker.cpp
     src/network/VideoManager.cpp
+    src/network/RoverNode.cpp
+    src/network/NodeRegistry.cpp
     src/mapping/RadarPointCloud.cpp
     src/core/AppSettings.cpp
     src/core/DebugLogger.cpp
