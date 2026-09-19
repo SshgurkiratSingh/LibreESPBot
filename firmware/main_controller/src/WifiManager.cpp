@@ -44,6 +44,11 @@ void WifiManager::tryConnect() {
     Serial.printf("[WifiManager] Connecting to SSID: %s\n", m_ssid);
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);
+    
+    // Robust settings for dual-band / mesh routers (same SSID)
+    WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+    WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
+    
     WiFi.begin(m_ssid, m_pass);
 }
 

@@ -37,6 +37,11 @@ void WifiManager::setBeaconInfo(uint8_t boardType, uint8_t fwMajor, uint8_t fwMi
 void WifiManager::tryConnect() {
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);
+    
+    // Robust settings for dual-band / mesh routers (same SSID)
+    WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+    WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
+    
     WiFi.begin(m_ssid, m_password);
 }
 
