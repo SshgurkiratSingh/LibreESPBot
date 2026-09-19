@@ -219,7 +219,7 @@ void loop()
     // 2. Automation Update (Mixes APF steering & AEB braking)
     int16_t currentLeft = baseLeftPwm;
     int16_t currentRight = baseRightPwm;
-    autoEngine.update(currentLeft, currentRight, telemetry.headingCompassDeg);
+    autoEngine.update(currentLeft, currentRight, compassOk ? telemetry.headingCompassDeg : telemetry.yawDeg);
 
     if (!lastCommand.enableNoLagMode && lastCommand.enableRadarSweep)
     {
