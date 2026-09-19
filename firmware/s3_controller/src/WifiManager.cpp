@@ -57,15 +57,20 @@ void WifiManager::update() {
                 m_wifiLostMs = now;
             }
             if (now - m_wifiLostMs > WIFI_RECONNECT_HARD_MS) {
+                Serial.println("[WifiManager] Hard WiFi reset after prolonged loss");
                 WiFi.disconnect(true);
                 delay(100);
                 WiFi.begin(m_ssid, m_password);
                 m_wifiLostMs = now;
             } else {
+                Serial.println("[WifiManager] WiFi lost — attempting reconnect...");
                 WiFi.reconnect();
             }
         } else {
-            m_wifiLostMs = 0;
+            if (m_wifiLostMs != 0) {
+                Serial.println("[WifiManager] WiFi reconnected!");
+                m_wifiLostMs = 0;
+            }
             if (!m_socketsOpen) {
                 openSockets();
             }
@@ -89,7 +94,7 @@ void WifiManager::parseCmdSocket() {
     while ((packetSize = m_cmdSocket.parsePacket()) > 0) {
         uint8_t buffer[sizeof(VehicleCommandPacket)]; // Large enough for cmd or ping
         if (packetSize > (int)sizeof(buffer)) {
-            // Flush
+            Serial.printf("[WifiManager] Dropping oversized packet: %d bytes\n", packetSize);
             m_cmdSocket.flush();
             continue;
         }
@@ -98,18 +103,30 @@ void WifiManager::parseCmdSocket() {
         
         if (packetSize == sizeof(VehicleCommandPacket)) {
             VehicleCommandPacket* pkt = (VehicleCommandPacket*)buffer;
-            if (pkt->preamble == LBP_PREAMBLE_CMD && validateCrc(buffer, packetSize)) {
-                memcpy(&m_pendingCmd, pkt, sizeof(VehicleCommandPacket));
-                m_cmdPending = true;
-                m_clientIP = m_cmdSocket.remoteIP();
-                m_clientPort = m_cmdSocket.remotePort();
-                m_lastCmdMs = millis();
+            if (pkt->preamble == LBP_PREAMBLE_CMD) {
+                if (validateCrc(buffer, packetSize)) {
+                    memcpy(&m_pendingCmd, pkt, sizeof(VehicleCommandPacket));
+                    m_cmdPending = true;
+                    m_clientIP = m_cmdSocket.remoteIP();
+                    m_clientPort = m_cmdSocket.remotePort();
+                    m_lastCmdMs = millis();
+                } else {
+                    Serial.println("[WifiManager] CMD packet failed CRC!");
+                }
+            } else {
+                Serial.printf("[WifiManager] Unknown 25-byte packet, preamble: %04X\n", pkt->preamble);
             }
         } else if (packetSize == sizeof(LbpPingPacket)) {
             LbpPingPacket* pkt = (LbpPingPacket*)buffer;
-            if (pkt->preamble == LBP_PREAMBLE_PING && validateCrc(buffer, packetSize)) {
-                handlePing(*pkt, m_cmdSocket.remoteIP(), m_cmdSocket.remotePort());
+            if (pkt->preamble == LBP_PREAMBLE_PING) {
+                if (validateCrc(buffer, packetSize)) {
+                    handlePing(*pkt, m_cmdSocket.remoteIP(), m_cmdSocket.remotePort());
+                } else {
+                    Serial.println("[WifiManager] PING packet failed CRC!");
+                }
             }
+        } else {
+            Serial.printf("[WifiManager] Unknown packet size: %d bytes\n", packetSize);
         }
     }
 }
