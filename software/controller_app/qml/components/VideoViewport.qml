@@ -203,7 +203,7 @@ Rectangle {
                 spacing: 6
 
                 Button {
-                    text: "🎯 Pick from Screen"
+                    text: "Pick from Screen"
                     Layout.fillWidth: true
                     font.pixelSize: 10
                     onClicked: {

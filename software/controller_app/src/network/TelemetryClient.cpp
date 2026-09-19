@@ -120,6 +120,7 @@ float TelemetryClient::batteryVoltage()    const { return activeTel(m_registry).
 float TelemetryClient::imuTempC()          const { return activeTel(m_registry).imuTempC; }
 float TelemetryClient::baroTempC()         const { return activeTel(m_registry).baroTempC; }
 float TelemetryClient::baroPressurePa()    const { return activeTel(m_registry).baroPressurePa; }
+float TelemetryClient::relativeAltitudeM() const { auto* n=m_registry->activeNode(); return n ? n->relativeAltitudeM() : 0.0f; }
 int   TelemetryClient::irArrayState()      const { return activeTel(m_registry).irArrayState; }
 int   TelemetryClient::tof1DistMm()        const { return activeTel(m_registry).tof1DistMm; }
 int   TelemetryClient::tof2DistMm()        const { return activeTel(m_registry).tof2DistMm; }

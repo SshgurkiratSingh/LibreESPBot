@@ -8,6 +8,7 @@
 
 class NodeRegistry;
 class TelemetryClient;
+class AppSettings;
 
 class CommandEmitter : public QObject {
     Q_OBJECT
@@ -19,7 +20,8 @@ public:
     explicit CommandEmitter(NodeRegistry* registry, QObject* parent = nullptr);
     ~CommandEmitter();
 
-    void setTelemetryClient(TelemetryClient* tc) { m_telemetryClient = tc; }
+    void setAppSettings(AppSettings* appSettings) { m_appSettings = appSettings; }
+    void setTelemetryClient(TelemetryClient* client) { m_telemetryClient = client; }
 
 public slots:
     void setTargetAddress(const QString& ip, quint16 port = LBP_PORT_CMD);
@@ -60,6 +62,7 @@ private:
     uint16_t calculateCrc16(const uint8_t *data, size_t length);
 
     NodeRegistry*    m_registry;
+    AppSettings*     m_appSettings = nullptr;
     TelemetryClient* m_telemetryClient = nullptr;
     QUdpSocket*      m_socket;
     bool             m_ownsSocket;

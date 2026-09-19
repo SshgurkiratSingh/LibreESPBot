@@ -239,7 +239,8 @@ void setup() {
     config.pin_pwdn = PWDN_GPIO_NUM;
     config.pin_reset = RESET_GPIO_NUM;
     
-    config.xclk_freq_hz = 20000000; 
+    // DECELERATE XCLK to 10 MHz to guarantee DMA interrupt stability and lower LDO thermal load
+    config.xclk_freq_hz = 10000000; 
     
     // DOWNGRADE to VGA (640x480) for robust physical layer transmission
     config.frame_size = FRAMESIZE_VGA;
@@ -248,8 +249,10 @@ void setup() {
     if(psramFound()){
         // INCREASED integer value to 15 (higher compression, smaller payload)
         config.jpeg_quality = 15;
-        config.fb_count = 2; 
-        config.grab_mode = CAMERA_GRAB_LATEST; 
+        // REDUCE to a single buffer allocation for the OV3660 to prevent PSRAM bus saturation
+        config.fb_count = 1; 
+        // ALTER the acquisition parameter to prevent aggressive memory overwriting during transmission
+        config.grab_mode = CAMERA_GRAB_WHEN_EMPTY; 
         config.fb_location = CAMERA_FB_IN_PSRAM;
     } else {
         config.frame_size = FRAMESIZE_QVGA;
@@ -267,12 +270,21 @@ void setup() {
     sensor_t * s = esp_camera_sensor_get();
     if (s->id.PID == OV3660_PID) {
         s->set_vflip(s, 1); 
+        s->set_hmirror(s, 1); 
         s->set_brightness(s, 1); 
-        s->set_saturation(s, -2); 
+        s->set_saturation(s, -2);
+        
+        // OV3660 specific API implementations for optimal image processing
+        s->set_awb_gain(s, 1);
+        s->set_aec2(s, 0);
+        s->set_aec_value(s, 1200);
+        s->set_gain_ctrl(s, 1);
+        s->set_bpc(s, 1);
+        s->set_wpc(s, 1);
+    } else {
+        s->set_vflip(s, 1);
+        s->set_hmirror(s, 1);
     }
-
-    s->set_vflip(s, 1);
-    s->set_hmirror(s, 1);
 
     setupLedFlash(LED_GPIO_NUM);
 

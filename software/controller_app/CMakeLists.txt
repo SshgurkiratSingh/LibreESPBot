@@ -65,11 +65,10 @@ qt_add_qml_module(LibreESPBot
         qml/components/VirtualJoystick.qml
         qml/components/PolarRadarCanvas.qml
         qml/components/VideoViewport.qml
-        qml/components/ArtificialHorizon.qml
         qml/components/HardwareInspector.qml
         qml/components/JoystickMappingPanel.qml
         qml/components/KinematicsView3D.qml
-        qml/components/AviationHud.qml
+        qml/components/RoverHud.qml
         qml/components/ScriptPanel.qml
         qml/components/ExecuteToolPanel.qml
         qml/theme/Theme.qml

@@ -2,7 +2,7 @@
 
 AppSettings::AppSettings(QObject *parent) 
     : QObject(parent), 
-      m_settings(QSettings::IniFormat, QSettings::UserScope, "LibreESP", "LibreESPBot") 
+      m_settings(QCoreApplication::applicationDirPath() + "/config.ini", QSettings::IniFormat) 
 {
     // Load existing settings or set defaults
     m_radarPointLifetimeMs = m_settings.value("Radar/PointLifetimeMs", 5000).toInt();
@@ -15,6 +15,8 @@ AppSettings::AppSettings(QObject *parent)
     m_displayHudDebug = m_settings.value("Display/HudDebug", true).toBool();
     m_maxThrottleLimit = m_settings.value("Control/MaxThrottleLimit", 100).toInt();
     m_steeringSensitivity = m_settings.value("Control/SteeringSensitivity", 1.0f).toFloat();
+    m_invertThrottle = m_settings.value("Control/InvertThrottle", false).toBool();
+    m_invertSteering = m_settings.value("Control/InvertSteering", false).toBool();
     m_lowBatteryWarningVolts = m_settings.value("Safety/LowBatteryWarningVolts", 7.0f).toFloat();
     m_voltageScaleMultiplier = m_settings.value("Hardware/VoltageScaleMultiplier", 1.0f).toFloat();
     m_pitchOffset = m_settings.value("Calibration/PitchOffset", 0.0f).toFloat();
@@ -23,6 +25,7 @@ AppSettings::AppSettings(QObject *parent)
     m_wheelSizeMm = m_settings.value("Hardware/WheelSizeMm", 60).toInt();
     m_hudOpacity = m_settings.value("HUD/Opacity", 0.8f).toFloat();
     m_hudColor = m_settings.value("HUD/Color", "#00E5FF").toString();
+    m_lastActiveIp = m_settings.value("Network/LastActiveIp", "").toString();
 }
 
 int AppSettings::radarPointLifetimeMs() const {
@@ -133,6 +136,30 @@ void AppSettings::setSteeringSensitivity(float sensitivity) {
     }
 }
 
+bool AppSettings::invertThrottle() const {
+    return m_invertThrottle;
+}
+
+void AppSettings::setInvertThrottle(bool invert) {
+    if (m_invertThrottle != invert) {
+        m_invertThrottle = invert;
+        m_settings.setValue("Control/InvertThrottle", invert);
+        emit invertThrottleChanged();
+    }
+}
+
+bool AppSettings::invertSteering() const {
+    return m_invertSteering;
+}
+
+void AppSettings::setInvertSteering(bool invert) {
+    if (m_invertSteering != invert) {
+        m_invertSteering = invert;
+        m_settings.setValue("Control/InvertSteering", invert);
+        emit invertSteeringChanged();
+    }
+}
+
 float AppSettings::lowBatteryWarningVolts() const {
     return m_lowBatteryWarningVolts;
 }
@@ -206,4 +233,11 @@ void AppSettings::setHudColor(const QString& color) {
     m_hudColor = color;
     m_settings.setValue("HUD/Color", m_hudColor);
     emit hudColorChanged();
+}
+
+void AppSettings::setLastActiveIp(const QString& ip) {
+    if (m_lastActiveIp == ip) return;
+    m_lastActiveIp = ip;
+    m_settings.setValue("Network/LastActiveIp", m_lastActiveIp);
+    emit lastActiveIpChanged();
 }

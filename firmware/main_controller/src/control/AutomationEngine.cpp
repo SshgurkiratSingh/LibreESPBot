@@ -1,6 +1,7 @@
 #include "AutomationEngine.hpp"
 #include "TB6612_Driver.hpp"
 #include "DualVL53L0X.hpp"
+#include <cmath>
 
 #define AEB_THRESHOLD_MM 200 // Automatic Emergency Braking threshold
 
@@ -25,43 +26,41 @@ void AutomationEngine::setAutoTurn(bool enable, int16_t heading) {
 
 void AutomationEngine::update(int16_t &leftPwm, int16_t &rightPwm, float currentHeading) {
     if (autoTurnEnabled) {
+        // ------------------------------------------------------------------
+        // Proportional heading controller — calm, capped, no ramp-up.
+        //
+        // Shortest angular error:
         float diff = targetHeading - currentHeading;
-        while (diff > 180.0f) diff -= 360.0f;
+        while (diff >  180.0f) diff -= 360.0f;
         while (diff < -180.0f) diff += 360.0f;
-        
-        static bool isAligned = false;
-        if (abs(diff) <= 3.0f) {
-            isAligned = true;
-        } else if (abs(diff) > 8.0f) {
-            isAligned = false;
+
+        // Dead-band: if within 4° we consider ourselves aligned and stop.
+        if (fabsf(diff) <= 4.0f) {
+            leftPwm  = 0;
+            rightPwm = 0;
+            motorDriver->setMotorLeft(0);
+            motorDriver->setMotorRight(0);
+            return;
         }
 
-        if (isAligned) {
-            leftPwm = 0;
-            rightPwm = 0;
-            turnSpeed = 350;
-        } else {
-            float headingDelta = abs(currentHeading - lastHeading);
-            if (headingDelta < 0.5f) {
-                stuckTicks++;
-                if (stuckTicks >= 25) { // 500ms @ 50Hz
-                    turnSpeed += 100;
-                    if (turnSpeed > 900) turnSpeed = 900;
-                    stuckTicks = 0;
-                }
-            } else {
-                stuckTicks = 0;
-                turnSpeed -= 25;
-                if (turnSpeed < 350) turnSpeed = 350;
-            }
-            
-            int steerCmd = (diff > 0) ? -turnSpeed : turnSpeed;
-            leftPwm = steerCmd;
-            rightPwm = -steerCmd;
-        }
-        lastHeading = currentHeading;
-        
-        // Skip APF/AEB while auto turning, just push command
+        // P-gain: scale error (max 180°) to output range [MIN_TURN..MAX_TURN].
+        // At 180° error  -> MAX_TURN (512 PWM, 50% of 1023)
+        // At   4° error  -> MIN_TURN (358 PWM, 35% of 1023)
+        const int MIN_TURN = 358;
+        const int MAX_TURN = 512;
+
+        float scale = fabsf(diff) / 180.0f;   // 0.0 – 1.0
+        int   speed = (int)(MIN_TURN + scale * (MAX_TURN - MIN_TURN));
+        if (speed > MAX_TURN) speed = MAX_TURN;
+        if (speed < MIN_TURN) speed = MIN_TURN;
+
+        // Direction: positive diff means target is clockwise from current heading.
+        // Clockwise spin: left motor FORWARD, right motor BACK.
+        int steerCmd = (diff > 0) ? speed : -speed;
+        leftPwm  =  steerCmd;
+        rightPwm = -steerCmd;
+
+        // Push directly to motors — skip APF/AEB while turning
         motorDriver->setMotorLeft(leftPwm);
         motorDriver->setMotorRight(rightPwm);
         return;

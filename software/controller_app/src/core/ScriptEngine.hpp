@@ -30,12 +30,14 @@ signals:
 
 private slots:
     void executeNextLine();
-    void onTurnToTick();      // Called by m_turnTimer to poll compass and adjust
+    void onTurnPulseDone();    // Called after a short drive burst — stop & measure compass
+    void onTurnSettleDone();   // Called after settle pause — decide next pulse
 
 private:
     void setRunning(bool running);
     void setCurrentLine(int line);
     bool processCommand(const QString& cmd);
+    void startNextTurnPulse(); // Core pulsed turn helper
 
     // Utility: shortest angular distance from current heading to target (-180..+180)
     static float angleDiff(float from, float to);
@@ -45,11 +47,26 @@ private:
     QStringList       m_lines;
     int               m_currentLine;
     bool              m_isRunning;
-    QTimer            m_timer;       // General wait / delay timer
+    QTimer            m_timer;        // General wait / delay timer
 
-    // --- turn_to state ---
-    QTimer            m_turnTimer;   // Polls telemetry for arrival
-    float             m_turnTarget;  // Target compass heading (0-359)
-    static constexpr float kTolerance   = 5.0f;   // degrees
-    static constexpr int   kTickMs      = 100;    // ms per feedback tick (10 Hz)
+    // -----------------------------------------------------------------------
+    // turn_to state — pulsed approach:
+    //   1. Issue a short burst (kPulseMs) at kTurnSpeed in the correct direction
+    //   2. Stop both motors
+    //   3. Wait kSettleMs for the platform to stop and compass to stabilise
+    //   4. Read heading — if within tolerance, done. Else repeat from 1.
+    // -----------------------------------------------------------------------
+    QTimer   m_turnPulseTimer;   // Fires after drive burst — triggers stop
+    QTimer   m_turnSettleTimer;  // Fires after settle pause — triggers compass check
+    float    m_turnTarget;       // Target compass heading (0-359)
+    int      m_turnTimeoutMs;    // Safety: abort after this many ms of trying
+    QElapsedTimer m_turnElapsed; // Tracks total elapsed time for the timeout
+
+    // Tuning constants
+    static constexpr float kTolerance     =  5.0f;  // degrees — arrival band
+    static constexpr int   kPulseMs       =  350;   // ms of actual turning per burst (increased)
+    static constexpr int   kSettleMs      =  500;   // ms to wait after stopping for compass to calm (increased)
+    static constexpr int   kMinTurnSpeed  =  358;   // PWM min 35% of 1023
+    static constexpr int   kMaxTurnSpeed  =  512;   // PWM max 50% of 1023
+    static constexpr int   kDefaultTurnTimeoutMs = 15000; // give up after 15 s
 };

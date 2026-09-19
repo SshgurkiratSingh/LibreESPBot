@@ -74,13 +74,14 @@ int main(int argc, char *argv[])
 #endif
 
     // Instantiate backend workers
+    AppSettings      appSettings;
     NodeRegistry     nodeRegistry;
     TelemetryClient  telemetryClient(&nodeRegistry);
     CommandEmitter   commandEmitter(&nodeRegistry);
+    commandEmitter.setAppSettings(&appSettings);
     DiscoveryWorker  discoveryWorker(&nodeRegistry);
     VideoManager     videoManager;
     RadarPointCloud  radarCloud;
-    AppSettings      appSettings;
     ScriptEngine     scriptEngine(&commandEmitter, &telemetryClient);
     JoystickHandler  joystickHandler;
     PanoramaBuilder  panoramaBuilder(&commandEmitter, &telemetryClient, &videoManager);

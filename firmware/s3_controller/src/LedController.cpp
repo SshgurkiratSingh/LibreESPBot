@@ -2,8 +2,8 @@
 
 void LedController::init()
 {
-    // Single onboard WS2812 drawn as GRB.
-    FastLED.addLeds<WS2812, LED_DATA_PIN, GRB>(leds_, LED_NUM_LEDS);
+    FastLED.addLeds<WS2812, LED_DATA_PIN_1, GRB>(leds1_, LED_NUM_LEDS);
+    FastLED.addLeds<WS2812, LED_DATA_PIN_2, GRB>(leds2_, LED_NUM_LEDS);
 
     // The core fix for the blinding LED: clamp brightness and power so no
     // effect below can exceed these limits.
@@ -17,7 +17,8 @@ void LedController::init()
 
 void LedController::setPixel(CRGB color)
 {
-    leds_[0] = color;
+    fill_solid(leds1_, LED_NUM_LEDS, color);
+    fill_solid(leds2_, LED_NUM_LEDS, color);
     FastLED.show();
 }
 

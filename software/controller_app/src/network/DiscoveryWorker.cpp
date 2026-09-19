@@ -8,11 +8,13 @@ DiscoveryWorker::DiscoveryWorker(NodeRegistry* registry, QObject* parent)
     : QObject(parent)
     , m_registry(registry)
     , m_socket(new QUdpSocket(this))
+    , m_mdnsSocket(new QUdpSocket(this))
 {
 }
 
 DiscoveryWorker::~DiscoveryWorker() {
     m_socket->close();
+    m_mdnsSocket->close();
 }
 
 void DiscoveryWorker::startDiscovery() {
@@ -24,6 +26,16 @@ void DiscoveryWorker::startDiscovery() {
         qDebug() << "[DiscoveryWorker] Listening for LBP2 beacons on port" << LBP_PORT_BEACON;
     } else {
         qWarning() << "[DiscoveryWorker] Failed to bind to port" << LBP_PORT_BEACON;
+    }
+
+    // Bind mDNS socket for camera discovery
+    if (m_mdnsSocket->bind(QHostAddress::AnyIPv4, 5353,
+                           QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
+        m_mdnsSocket->joinMulticastGroup(QHostAddress("224.0.0.251"));
+        connect(m_mdnsSocket, &QUdpSocket::readyRead, this, &DiscoveryWorker::readPendingMdnsDatagrams);
+        qDebug() << "[DiscoveryWorker] Listening for camera mDNS beacons on port 5353";
+    } else {
+        qWarning() << "[DiscoveryWorker] Failed to bind mDNS socket to port 5353";
     }
 }
 
@@ -70,6 +82,27 @@ void DiscoveryWorker::readPendingDatagrams() {
         // Route to NodeRegistry — creates node if new, updates if existing
         RoverNode* node = m_registry->nodeForIp(senderIp);
         node->updateFromBeacon(bcn, senderIp);
+    }
+}
+
+void DiscoveryWorker::readPendingMdnsDatagrams() {
+    while (m_mdnsSocket->hasPendingDatagrams()) {
+        QNetworkDatagram datagram = m_mdnsSocket->receiveDatagram();
+        QByteArray data = datagram.data();
+        QString msg = QString::fromUtf8(data);
+
+        // Check if it matches the camera broadcast format:
+        // "_camctrl._udp.local drv=ESP32-CAM ip=x.x.x.x"
+        if (msg.startsWith("_camctrl._udp.local") && msg.contains("ip=")) {
+            int ipIndex = msg.indexOf("ip=") + 3;
+            QString ip = msg.mid(ipIndex).trimmed();
+            
+            if (m_cameraIp != ip) {
+                m_cameraIp = ip;
+                emit cameraDiscovered(ip);
+                qDebug() << "[DiscoveryWorker] Auto-discovered camera IP:" << ip;
+            }
+        }
     }
 }
 

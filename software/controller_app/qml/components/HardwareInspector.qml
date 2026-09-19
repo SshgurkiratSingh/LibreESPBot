@@ -10,9 +10,9 @@ Rectangle {
     
     implicitHeight: mainLayout.implicitHeight + 30
     
-    // Fallback profile string from discovery
-    property string profileString: typeof discoveryWorker !== "undefined" ? discoveryWorker.hardwareProfile : "Awaiting Discovery..."
-    property string roverIp: typeof discoveryWorker !== "undefined" ? discoveryWorker.roverIp : "Unknown IP"
+    // Fetch profile and IP from the active node in NodeRegistry
+    property string profileString: (typeof nodeRegistry !== "undefined" && nodeRegistry.activeNode) ? nodeRegistry.activeNode.boardName : "Awaiting Discovery..."
+    property string roverIp: (typeof nodeRegistry !== "undefined" && nodeRegistry.activeNode) ? nodeRegistry.activeNode.ip : "Unknown IP"
     
     ColumnLayout {
         id: mainLayout

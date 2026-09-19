@@ -12,12 +12,18 @@ ScriptEngine::ScriptEngine(CommandEmitter* emitter, TelemetryClient* telemetry, 
     , m_currentLine(-1)
     , m_isRunning(false)
     , m_turnTarget(0.0f)
+    , m_turnTimeoutMs(kDefaultTurnTimeoutMs)
 {
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, &ScriptEngine::executeNextLine);
 
-    m_turnTimer.setInterval(kTickMs);
-    connect(&m_turnTimer, &QTimer::timeout, this, &ScriptEngine::onTurnToTick);
+    // Pulse timer: fires once after kPulseMs → stop motors
+    m_turnPulseTimer.setSingleShot(true);
+    connect(&m_turnPulseTimer, &QTimer::timeout, this, &ScriptEngine::onTurnPulseDone);
+
+    // Settle timer: fires once after kSettleMs → check compass & possibly re-pulse
+    m_turnSettleTimer.setSingleShot(true);
+    connect(&m_turnSettleTimer, &QTimer::timeout, this, &ScriptEngine::onTurnSettleDone);
 }
 
 // ---------------------------------------------------------------------------
@@ -40,12 +46,13 @@ void ScriptEngine::runScript(const QString& scriptText)
 void ScriptEngine::stopScript()
 {
     m_timer.stop();
-    m_turnTimer.stop();
+    m_turnPulseTimer.stop();
+    m_turnSettleTimer.stop();
     setRunning(false);
 
-    // Safety fallback
+    // Safety fallback — always zero the motors on stop
     if (m_emitter) {
-        m_emitter->setAutoTurn(false, 0); // CRITICAL: Disable firmware auto-turn
+        m_emitter->setAutoTurn(false, 0);
         m_emitter->updateThrottle(0);
         m_emitter->updateSteering(0);
     }
@@ -159,6 +166,14 @@ bool ScriptEngine::processCommand(const QString& cmd)
     //  for actual movement, ramps up speed if it detects it's stuck,
     //  and stops once within ±5° of the target.
     // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    //  turn_to(degrees)  — pulsed closed-loop compass turn
+    //
+    //  Short burst (kPulseMs at kTurnSpeed) → stop → settle (kSettleMs) →
+    //  re-read compass → repeat until within kTolerance degrees.
+    //  This keeps the rover slow and controlled, gives the magnetometer
+    //  time to settle, and prevents over-shoot from momentum.
+    // ------------------------------------------------------------------
     } else if (command == "turn_to") {
         if (!okFloat) return false;
 
@@ -167,29 +182,24 @@ bool ScriptEngine::processCommand(const QString& cmd)
         if (target < 0) target += 360.0f;
 
         if (!m_telemetry) {
-            // No telemetry — skip command silently
             qWarning() << "ScriptEngine: turn_to called but no TelemetryClient available";
             QMetaObject::invokeMethod(this, "executeNextLine", Qt::QueuedConnection);
             return true;
         }
 
+        m_turnTarget    = target;
+        m_turnTimeoutMs = kDefaultTurnTimeoutMs;
+
         // Already within tolerance? Skip immediately.
         float currentHeading = m_telemetry->headingCompassDeg();
-        if (qAbs(angleDiff(currentHeading, target)) <= kTolerance) {
-            if (m_emitter) m_emitter->updateSteering(0);
+        if (qAbs(angleDiff(currentHeading, m_turnTarget)) <= kTolerance) {
+            qDebug() << "ScriptEngine: turn_to already on target";
             QMetaObject::invokeMethod(this, "executeNextLine", Qt::QueuedConnection);
             return true;
         }
 
-        // Initialise state machine
-        m_turnTarget  = target;
-
-        if (m_emitter) {
-            m_emitter->setAutoTurn(true, m_turnTarget);
-        }
-
-        // Start polling timer
-        m_turnTimer.start();
+        m_turnElapsed.start();
+        startNextTurnPulse();
 
     } else {
         return false; // Unknown command
@@ -199,26 +209,89 @@ bool ScriptEngine::processCommand(const QString& cmd)
 }
 
 // ---------------------------------------------------------------------------
-//  Private slot: Polling timer to check if firmware auto-turn is complete
+//  startNextTurnPulse
+//  Decides direction, issues a short motor burst, then arms the pulse timer.
 // ---------------------------------------------------------------------------
-void ScriptEngine::onTurnToTick()
+void ScriptEngine::startNextTurnPulse()
 {
     if (!m_isRunning || !m_emitter || !m_telemetry) {
-        m_turnTimer.stop();
+        return;
+    }
+
+    // Safety timeout
+    if (m_turnElapsed.elapsed() > m_turnTimeoutMs) {
+        qWarning() << "ScriptEngine: turn_to timed out after" << m_turnElapsed.elapsed() << "ms";
+        if (m_emitter) {
+            m_emitter->updateSteering(0);
+            m_emitter->updateThrottle(0);
+        }
+        // Advance script anyway — soft fail, don't block
+        QMetaObject::invokeMethod(this, "executeNextLine", Qt::QueuedConnection);
         return;
     }
 
     float heading = m_telemetry->headingCompassDeg();
     float diff    = angleDiff(heading, m_turnTarget);
 
-    // --- Arrived? --------------------------------------------------------
+    // Arrived?
     if (qAbs(diff) <= kTolerance) {
-        m_turnTimer.stop();
-        m_emitter->setAutoTurn(false, 0); // Disable auto-turn on firmware
-        
-        // Advance script to next line
+        if (m_emitter) {
+            m_emitter->updateSteering(0);
+            m_emitter->updateThrottle(0);
+        }
+        qDebug() << "ScriptEngine: turn_to reached target, heading=" << heading;
         QMetaObject::invokeMethod(this, "executeNextLine", Qt::QueuedConnection);
+        return;
     }
+
+    // Scale turn speed between kMinTurnSpeed (35%) and kMaxTurnSpeed (50%) based on angle error
+    float scale = qAbs(diff) / 180.0f;
+    int speed = static_cast<int>(kMinTurnSpeed + scale * (kMaxTurnSpeed - kMinTurnSpeed));
+    if (speed > kMaxTurnSpeed) speed = kMaxTurnSpeed;
+    if (speed < kMinTurnSpeed) speed = kMinTurnSpeed;
+
+    // Direction: positive diff → need to turn clockwise (positive steer),
+    //            negative diff → need to turn counter-clockwise (negative steer).
+    // In-place spin: throttle = 0, only steering so each side drives opposite.
+    int steerVal = (diff > 0) ? speed : -speed;
+
+    m_emitter->updateThrottle(0);
+    m_emitter->updateSteering(steerVal);
+
+    qDebug() << "ScriptEngine: turn_to pulse — heading=" << heading
+             << "target=" << m_turnTarget
+             << "diff=" << diff
+             << "steer=" << steerVal
+             << "elapsed=" << m_turnElapsed.elapsed() << "ms";
+
+    // Arm pulse timer — when it fires we stop motors and begin settle period
+    m_turnPulseTimer.start(kPulseMs);
+}
+
+// ---------------------------------------------------------------------------
+//  Slot: pulse timer expired → stop motors, wait for compass to settle
+// ---------------------------------------------------------------------------
+void ScriptEngine::onTurnPulseDone()
+{
+    if (!m_isRunning) return;
+
+    // Stop motors so chassis doesn't over-shoot during the settle window
+    if (m_emitter) {
+        m_emitter->updateSteering(0);
+        m_emitter->updateThrottle(0);
+    }
+
+    // Wait for compass reading to stabilise before the next measurement
+    m_turnSettleTimer.start(kSettleMs);
+}
+
+// ---------------------------------------------------------------------------
+//  Slot: settle timer expired → re-evaluate heading and possibly re-pulse
+// ---------------------------------------------------------------------------
+void ScriptEngine::onTurnSettleDone()
+{
+    if (!m_isRunning) return;
+    startNextTurnPulse();
 }
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 #include "RoverNode.hpp"
 #include <QDateTime>
 #include <cstring>
+#include <cmath>
 
 RoverNode::RoverNode(const QString& ip, QObject* parent)
     : QObject(parent), m_ip(ip) {
@@ -24,8 +25,58 @@ void RoverNode::updateFromBeacon(const LbpBeaconPacket& bcn, const QString& send
 }
 
 void RoverNode::updateFromTelemetry(const VehicleTelemetryPacket& tel) {
-    m_telemetry = tel;
-    m_hasTelemetry = true;
+    if (m_basePressurePa == 0.0f && tel.baroPressurePa > 50000.0f) {
+        m_basePressurePa = tel.baroPressurePa; // Set initial baseline
+    }
+
+    if (m_hasTelemetry) {
+        float alpha = 0.2f; // LPF factor
+
+        // Linear variables (Baro & IMU)
+        m_telemetry.pitchDeg = alpha * tel.pitchDeg + (1.0f - alpha) * m_telemetry.pitchDeg;
+        m_telemetry.rollDeg = alpha * tel.rollDeg + (1.0f - alpha) * m_telemetry.rollDeg;
+        m_telemetry.baroTempC = alpha * tel.baroTempC + (1.0f - alpha) * m_telemetry.baroTempC;
+        m_telemetry.baroPressurePa = alpha * tel.baroPressurePa + (1.0f - alpha) * m_telemetry.baroPressurePa;
+        m_telemetry.linearAccX = alpha * tel.linearAccX + (1.0f - alpha) * m_telemetry.linearAccX;
+        m_telemetry.linearAccY = alpha * tel.linearAccY + (1.0f - alpha) * m_telemetry.linearAccY;
+        m_telemetry.linearAccZ = alpha * tel.linearAccZ + (1.0f - alpha) * m_telemetry.linearAccZ;
+
+        // Circular variables (Compass & Yaw)
+        float diffHeading = tel.headingCompassDeg - m_telemetry.headingCompassDeg;
+        while (diffHeading > 180.0f) diffHeading -= 360.0f;
+        while (diffHeading < -180.0f) diffHeading += 360.0f;
+        m_telemetry.headingCompassDeg += alpha * diffHeading;
+        if (m_telemetry.headingCompassDeg < 0.0f) m_telemetry.headingCompassDeg += 360.0f;
+        if (m_telemetry.headingCompassDeg >= 360.0f) m_telemetry.headingCompassDeg -= 360.0f;
+
+        float diffYaw = tel.yawDeg - m_telemetry.yawDeg;
+        while (diffYaw > 180.0f) diffYaw -= 360.0f;
+        while (diffYaw < -180.0f) diffYaw += 360.0f;
+        m_telemetry.yawDeg += alpha * diffYaw;
+        if (m_telemetry.yawDeg < 0.0f) m_telemetry.yawDeg += 360.0f;
+        if (m_telemetry.yawDeg >= 360.0f) m_telemetry.yawDeg -= 360.0f;
+
+        // Copy unaffected fields
+        m_telemetry.batteryVoltage = tel.batteryVoltage;
+        m_telemetry.imuTempC = tel.imuTempC;
+        m_telemetry.tof1DistMm = tel.tof1DistMm;
+        m_telemetry.tof2DistMm = tel.tof2DistMm;
+        m_telemetry.motorLeftPwm = tel.motorLeftPwm;
+        m_telemetry.motorRightPwm = tel.motorRightPwm;
+        m_telemetry.irArrayState = tel.irArrayState;
+        m_telemetry.servoAngleDeg = tel.servoAngleDeg;
+        m_telemetry.statusFlags = tel.statusFlags;
+        m_telemetry.timestampMs = tel.timestampMs;
+        m_telemetry.boardType = tel.boardType;
+        m_telemetry.fwMajor = tel.fwMajor;
+        m_telemetry.fwMinor = tel.fwMinor;
+        m_telemetry.fwPatch = tel.fwPatch;
+        m_telemetry.hardwareRev = tel.hardwareRev;
+        m_telemetry.crc16 = tel.crc16;
+    } else {
+        m_telemetry = tel;
+        m_hasTelemetry = true;
+    }
     m_battery = tel.batteryVoltage;
     m_boardType = tel.boardType;
     m_fwVersion = QString("%1.%2.%3").arg(tel.fwMajor).arg(tel.fwMinor).arg(tel.fwPatch);
@@ -73,4 +124,9 @@ QString RoverNode::statusText() const {
     } else {
         return "STALE";
     }
+}
+
+float RoverNode::relativeAltitudeM() const {
+    if (m_basePressurePa < 50000.0f || m_telemetry.baroPressurePa < 50000.0f) return 0.0f;
+    return 44330.0f * (1.0f - std::pow(m_telemetry.baroPressurePa / m_basePressurePa, 1.0f / 5.255f));
 }

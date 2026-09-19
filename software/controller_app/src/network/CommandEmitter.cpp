@@ -1,12 +1,14 @@
 #include "CommandEmitter.hpp"
 #include "NodeRegistry.hpp"
 #include "TelemetryClient.hpp"
+#include "../core/AppSettings.hpp"
 #include <QDateTime>
 #include <QDebug>
 
 CommandEmitter::CommandEmitter(NodeRegistry* registry, QObject* parent)
     : QObject(parent)
     , m_registry(registry)
+    , m_appSettings(nullptr)
     , m_socket(new QUdpSocket(this))
     , m_ownsSocket(true)
     , m_timer(new QTimer(this))
@@ -60,12 +62,18 @@ void CommandEmitter::stopEmitting() {
 }
 
 void CommandEmitter::updateThrottle(int throttle) {
+    if (m_appSettings && m_appSettings->invertThrottle()) {
+        throttle = -throttle;
+    }
     if (m_packet.throttleAxis != throttle) {
         m_packet.throttleAxis = throttle;
         emit currentThrottleChanged();
     }
 }
 void CommandEmitter::updateSteering(int steering) {
+    if (m_appSettings && m_appSettings->invertSteering()) {
+        steering = -steering;
+    }
     if (m_packet.steeringAxis != steering) {
         m_packet.steeringAxis = steering;
         emit currentSteeringChanged();

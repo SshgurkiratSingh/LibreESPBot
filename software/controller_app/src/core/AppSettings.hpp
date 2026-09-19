@@ -17,6 +17,8 @@ class AppSettings : public QObject {
     Q_PROPERTY(bool displayHudDebug READ displayHudDebug WRITE setDisplayHudDebug NOTIFY displayHudDebugChanged)
     Q_PROPERTY(int maxThrottleLimit READ maxThrottleLimit WRITE setMaxThrottleLimit NOTIFY maxThrottleLimitChanged)
     Q_PROPERTY(float steeringSensitivity READ steeringSensitivity WRITE setSteeringSensitivity NOTIFY steeringSensitivityChanged)
+    Q_PROPERTY(bool invertThrottle READ invertThrottle WRITE setInvertThrottle NOTIFY invertThrottleChanged)
+    Q_PROPERTY(bool invertSteering READ invertSteering WRITE setInvertSteering NOTIFY invertSteeringChanged)
     Q_PROPERTY(float lowBatteryWarningVolts READ lowBatteryWarningVolts WRITE setLowBatteryWarningVolts NOTIFY lowBatteryWarningVoltsChanged)
     Q_PROPERTY(float voltageScaleMultiplier READ voltageScaleMultiplier WRITE setVoltageScaleMultiplier NOTIFY voltageScaleMultiplierChanged)
 
@@ -24,6 +26,7 @@ class AppSettings : public QObject {
     Q_PROPERTY(int wheelSizeMm READ wheelSizeMm WRITE setWheelSizeMm NOTIFY wheelSizeMmChanged)
     Q_PROPERTY(float hudOpacity READ hudOpacity WRITE setHudOpacity NOTIFY hudOpacityChanged)
     Q_PROPERTY(QString hudColor READ hudColor WRITE setHudColor NOTIFY hudColorChanged)
+    Q_PROPERTY(QString lastActiveIp READ lastActiveIp WRITE setLastActiveIp NOTIFY lastActiveIpChanged)
 
 public:
     Q_PROPERTY(float pitchOffset READ pitchOffset WRITE setPitchOffset NOTIFY pitchOffsetChanged)
@@ -58,6 +61,12 @@ public:
     float steeringSensitivity() const;
     void setSteeringSensitivity(float sensitivity);
 
+    bool invertThrottle() const;
+    void setInvertThrottle(bool invert);
+
+    bool invertSteering() const;
+    void setInvertSteering(bool invert);
+
     float lowBatteryWarningVolts() const;
     void setLowBatteryWarningVolts(float volts);
 
@@ -75,6 +84,9 @@ public:
 
     QString hudColor() const { return m_hudColor; }
     void setHudColor(const QString& color);
+
+    QString lastActiveIp() const { return m_lastActiveIp; }
+    void setLastActiveIp(const QString& ip);
 
     float pitchOffset() const { return m_pitchOffset; }
     void setPitchOffset(float offset);
@@ -95,6 +107,8 @@ signals:
     void displayHudDebugChanged();
     void maxThrottleLimitChanged();
     void steeringSensitivityChanged();
+    void invertThrottleChanged();
+    void invertSteeringChanged();
     void lowBatteryWarningVoltsChanged();
     void voltageScaleMultiplierChanged();
 
@@ -102,6 +116,7 @@ signals:
     void wheelSizeMmChanged();
     void hudOpacityChanged();
     void hudColorChanged();
+    void lastActiveIpChanged();
 
     void pitchOffsetChanged();
     void rollOffsetChanged();
@@ -117,12 +132,15 @@ private:
     bool m_displayHudDebug;
     int m_maxThrottleLimit;
     float m_steeringSensitivity;
+    bool m_invertThrottle;
+    bool m_invertSteering;
     float m_lowBatteryWarningVolts;
     float m_voltageScaleMultiplier;
     int m_motorRpm;
     int m_wheelSizeMm;
     float m_hudOpacity;
     QString m_hudColor;
+    QString m_lastActiveIp;
     float m_pitchOffset;
     float m_rollOffset;
 };

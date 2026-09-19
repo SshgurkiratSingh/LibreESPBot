@@ -14,12 +14,9 @@ public:
 
 private:
     TB6612_Driver* motorDriver;
-    DualVL53L0X* tofRadar;
-    bool aebEnabled;
-    bool apfEnabled;
-    bool autoTurnEnabled = false;
-    int16_t targetHeading = 0;
-    int stuckTicks = 0;
-    float lastHeading = 0.0f;
-    int turnSpeed = 350;
+    DualVL53L0X*   tofRadar;
+    bool     aebEnabled;
+    bool     apfEnabled;
+    bool     autoTurnEnabled = false;
+    int16_t  targetHeading   = 0;
 };

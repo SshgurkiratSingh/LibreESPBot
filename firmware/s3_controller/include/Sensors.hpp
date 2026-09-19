@@ -1,4 +1,5 @@
 #pragma once
+#include <Wire.h>
 
 #include <Arduino.h>
 #include <Adafruit_BMP280.h>
@@ -7,13 +8,13 @@
 // ==========================================
 // IR Array Pins
 // ==========================================
-#define IR_PIN_1 2
-#define IR_PIN_2 3
-#define IR_PIN_3 4
-#define IR_PIN_4 5
-#define IR_PIN_5 6
-#define IR_PIN_6 7
-#define IR_PIN_7 8
+#define IR_PIN_1 45
+#define IR_PIN_2 4
+#define IR_PIN_3 5
+#define IR_PIN_4 6
+#define IR_PIN_5 7
+#define IR_PIN_6 47
+#define IR_PIN_7 48
 
 // ==========================================
 // Hardware I2C (for BMP280)
@@ -30,7 +31,7 @@
 #define TOF2_SDA 17
 #define TOF2_SCL 18
 
-#include "MpuDriver.hpp"
+#include "MPU6050.hpp"
 #include "CompassDriver.hpp"
 
 class S3Sensors {
@@ -50,10 +51,11 @@ public:
     uint16_t getRightDistanceMm();
 
     // Orientation
-    MpuDriver imu;
+    MPU6050 imu;
     CompassDriver compass;
     bool imuOk;
     bool compassOk;
+    bool baroOk;
 
 private:
     Adafruit_BMP280 bmp;

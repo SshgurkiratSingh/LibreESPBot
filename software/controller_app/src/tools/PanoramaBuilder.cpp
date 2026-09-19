@@ -4,6 +4,8 @@
 #include <QDateTime>
 #include <QDir>
 #include <QDebug>
+#include <QtConcurrent/QtConcurrent>
+#include <QFutureWatcher>
 #include <cmath>
 
 PanoramaBuilder::PanoramaBuilder(CommandEmitter* emitter, TelemetryClient* telemetry, VideoManager* video, QObject *parent)
@@ -14,16 +16,21 @@ PanoramaBuilder::PanoramaBuilder(CommandEmitter* emitter, TelemetryClient* telem
     , m_state(IDLE)
     , m_isRunning(false)
     , m_progressPercent(0)
-    , m_stepDegrees(30)
-    , m_targetTotalShots(12) // 360 / 30
+    , m_stepDegrees(20)
+    , m_targetTotalShots(19)
+    , m_currentShotIndex(0)
     , m_turnThrottle(400)
-    , m_initialYaw(0)
-    , m_targetYaw(0)
-    , m_lastYaw(0)
-    , m_totalTurned(0)
+    , m_startHeading(0.0f)
+    , m_targetHeading(0.0f)
 {
     m_stabilizeTimer.setSingleShot(true);
     connect(&m_stabilizeTimer, &QTimer::timeout, this, &PanoramaBuilder::stabilizeAndCapture);
+
+    m_turnPulseTimer.setSingleShot(true);
+    connect(&m_turnPulseTimer, &QTimer::timeout, this, &PanoramaBuilder::onTurnPulseTimeout);
+
+    m_turnSettleTimer.setSingleShot(true);
+    connect(&m_turnSettleTimer, &QTimer::timeout, this, &PanoramaBuilder::onTurnSettleTimeout);
 
     if (m_telemetry) {
         connect(m_telemetry, &TelemetryClient::telemetryUpdated, this, &PanoramaBuilder::onTelemetryUpdated);
@@ -50,27 +57,37 @@ void PanoramaBuilder::startPanorama() {
     m_capturedImages.clear();
     emit totalCapturedChanged();
 
-    m_targetTotalShots = 360 / qMax(5, m_stepDegrees);
-    m_initialYaw = m_telemetry->yaw();
-    m_targetYaw = m_initialYaw; // We will use m_targetYaw to store the step's initial yaw
-    m_lastYaw = m_initialYaw;
-    m_totalTurned = 0;
-    
+    m_stepDegrees = qBound(10, m_stepDegrees, 90);
+    // Add +1 shot so the 360° rotation closes the loop and overlaps back onto the starting image
+    int baseShots = static_cast<int>(std::ceil(360.0f / m_stepDegrees));
+    m_targetTotalShots = baseShots + 1;
+    m_currentShotIndex = 0;
+
+    m_startHeading = m_telemetry->headingCompassDeg();
+    m_targetHeading = m_startHeading;
+
     setRunning(true);
     setProgress(0);
     setLastResultPath("");
 
-    // Capture first frame immediately
+    qDebug() << "PanoramaBuilder: Starting full 360 panorama, startHeading=" << m_startHeading
+             << "stepDegrees=" << m_stepDegrees << "totalShots=" << m_targetTotalShots;
+
+    // Capture first frame (shot 0) at current heading
     m_state = STABILIZING;
-    m_stabilizeTimer.start(500);
+    m_stabilizeTimer.start(kSettleMs);
 }
 
 void PanoramaBuilder::cancelPanorama() {
     if (!m_isRunning) return;
 
     m_stabilizeTimer.stop();
+    m_turnPulseTimer.stop();
+    m_turnSettleTimer.stop();
+
     if (m_emitter) {
         m_emitter->updateSteering(0);
+        m_emitter->updateThrottle(0);
     }
 
     m_state = IDLE;
@@ -79,61 +96,78 @@ void PanoramaBuilder::cancelPanorama() {
     emit panoramaError("Panorama cancelled by user.");
 }
 
-void PanoramaBuilder::executeNextTurn() {
-    if (!m_isRunning) return;
+void PanoramaBuilder::startTurnToHeading(float targetHeading) {
+    if (!m_isRunning || !m_telemetry || !m_emitter) return;
 
-    if (m_capturedImages.size() >= m_targetTotalShots || m_totalTurned >= 350.0f) {
-        // We have a full 360 view (or have rotated 360 degrees)
-        stitchImages();
+    m_targetHeading = targetHeading;
+    m_state = TURNING_TO_TARGET;
+    m_turnStepElapsed.start();
+
+    qDebug() << "PanoramaBuilder: Turning to angle targetHeading=" << m_targetHeading
+             << "for shot index" << m_currentShotIndex;
+
+    issueTurnPulse();
+}
+
+void PanoramaBuilder::issueTurnPulse() {
+    if (!m_isRunning || m_state != TURNING_TO_TARGET || !m_telemetry || !m_emitter) return;
+
+    // Safety timeout check
+    if (m_turnStepElapsed.elapsed() > kTurnTimeoutMs) {
+        qWarning() << "PanoramaBuilder: Turn step timed out for target" << m_targetHeading;
+        m_emitter->updateSteering(0);
+        m_emitter->updateThrottle(0);
+        // Advance to capture phase anyway so panorama does not freeze
+        m_state = STABILIZING;
+        m_stabilizeTimer.start(kSettleMs);
         return;
     }
 
-    // Record the starting yaw for this turn step
-    m_targetYaw = m_telemetry->yaw();
-    m_lastYaw = m_targetYaw;
-    
-    m_state = ROTATING;
-    
-    // Command the bot to rotate in place (pivot right)
-    // Positive steering is right. We need throttle for the bot to actually move and turn.
-    m_emitter->updateSteering(512); // 50% of 1023
-    m_emitter->updateThrottle(m_turnThrottle);
+    float current = m_telemetry->headingCompassDeg();
+    float diff    = angleDiff(current, m_targetHeading);
+
+    // Reached target heading?
+    if (std::abs(diff) <= kTolerance) {
+        qDebug() << "PanoramaBuilder: Reached target angle" << m_targetHeading << "heading=" << current;
+        m_emitter->updateSteering(0);
+        m_emitter->updateThrottle(0);
+        m_state = STABILIZING;
+        m_stabilizeTimer.start(kSettleMs);
+        return;
+    }
+
+    // Proportional turn PWM speed scaling between min 35% (358) and max 50% (512)
+    float scale = std::abs(diff) / 180.0f;
+    int speed = static_cast<int>(kMinTurnPWM + scale * (kMaxTurnPWM - kMinTurnPWM));
+    speed = qBound(kMinTurnPWM, speed, kMaxTurnPWM);
+
+    int steerVal = (diff > 0) ? speed : -speed;
+
+    m_emitter->updateThrottle(0);
+    m_emitter->updateSteering(steerVal);
+
+    m_turnPulseTimer.start(kPulseMs);
 }
 
-float PanoramaBuilder::normalizeAngle(float angle) {
-    while (angle < 0) angle += 360;
-    while (angle >= 360) angle -= 360;
-    return angle;
+void PanoramaBuilder::onTurnPulseTimeout() {
+    if (!m_isRunning || m_state != TURNING_TO_TARGET) return;
+
+    // Stop motors during settle window
+    if (m_emitter) {
+        m_emitter->updateSteering(0);
+        m_emitter->updateThrottle(0);
+    }
+
+    m_turnSettleTimer.start(kSettleMs);
 }
 
-float PanoramaBuilder::angleDifference(float target, float current) {
-    float diff = target - current;
-    while (diff < -180.0f) diff += 360.0f;
-    while (diff > 180.0f) diff -= 360.0f;
-    return diff;
+void PanoramaBuilder::onTurnSettleTimeout() {
+    if (!m_isRunning || m_state != TURNING_TO_TARGET) return;
+    issueTurnPulse();
 }
 
 void PanoramaBuilder::onTelemetryUpdated() {
-    if (m_state != ROTATING || !m_isRunning) return;
-
-    float currentYaw = m_telemetry->yaw();
-    
-    float delta = angleDifference(currentYaw, m_lastYaw);
-    m_lastYaw = currentYaw;
-    m_totalTurned += qAbs(delta);
-
-    // Calculate how many degrees we have turned from the start of this step
-    float turned = qAbs(angleDifference(currentYaw, m_targetYaw));
-
-    // If we have turned at least the step degrees, or if we have completed a full 360 degree rotation, stop.
-    if (turned >= (float)m_stepDegrees || m_totalTurned >= 350.0f) {
-        // Stop turning
-        m_emitter->updateSteering(0);
-        m_state = STABILIZING;
-        
-        // Wait 1 second for chassis to settle before taking picture
-        m_stabilizeTimer.start(1000);
-    }
+    // Heading checks handled via pulse-settle loop
 }
 
 void PanoramaBuilder::stabilizeAndCapture() {
@@ -150,23 +184,107 @@ void PanoramaBuilder::stabilizeAndCapture() {
             m_capturedImages.append(img);
             emit totalCapturedChanged();
             
-            setProgress((m_capturedImages.size() * 100) / m_targetTotalShots);
+            setProgress((m_capturedImages.size() * 90) / m_targetTotalShots);
+            qDebug() << "PanoramaBuilder: Captured shot" << m_capturedImages.size() << "/" << m_targetTotalShots;
         } else {
-            qWarning() << "Failed to decode image from base64 data.";
+            qWarning() << "PanoramaBuilder: Failed to decode image from base64 data.";
         }
     } else {
-        qWarning() << "Failed to capture frame for panorama";
+        qWarning() << "PanoramaBuilder: Failed to capture video frame.";
         cancelPanorama();
         emit panoramaError("Failed to capture video frame.");
         return;
     }
 
-    executeNextTurn();
+    m_currentShotIndex++;
+
+    if (m_currentShotIndex >= m_targetTotalShots) {
+        qDebug() << "PanoramaBuilder: All shots captured! Starting OpenCV feature stitching...";
+        if (m_emitter) {
+            m_emitter->updateSteering(0);
+            m_emitter->updateThrottle(0);
+        }
+        processStitchingAsync();
+    } else {
+        float nextTarget = normalizeAngle(m_startHeading + m_currentShotIndex * m_stepDegrees);
+        startTurnToHeading(nextTarget);
+    }
 }
 
-void PanoramaBuilder::stitchImages() {
+cv::Mat PanoramaBuilder::featureBasedStitch(const std::vector<cv::Mat>& images) {
+    if (images.empty()) return cv::Mat();
+    if (images.size() == 1) return images[0].clone();
+
+    // Primary: OpenCV Stitcher API
+    try {
+        cv::Mat resultMat;
+        cv::Ptr<cv::Stitcher> stitcher = cv::Stitcher::create(cv::Stitcher::PANORAMA);
+        stitcher->setFeaturesFinder(cv::ORB::create(2000));
+        cv::Stitcher::Status status = stitcher->stitch(images, resultMat);
+        
+        std::vector<int> component = stitcher->component();
+        
+        if (status == cv::Stitcher::OK && !resultMat.empty() && component.size() == images.size()) {
+            qDebug() << "PanoramaBuilder: OpenCV cv::Stitcher successfully stitched all" << images.size() << "images!";
+            return resultMat;
+        }
+        qWarning() << "PanoramaBuilder: cv::Stitcher returned status:" << status 
+                   << "used images:" << component.size() << "/" << images.size()
+                   << "- running kinematic fallback...";
+    } catch (const cv::Exception& e) {
+        qWarning() << "PanoramaBuilder: cv::Stitcher exception:" << e.what();
+    }
+
+    // Secondary: Kinematic Translation Blending based on commanded step degrees
+    // ESP32-CAM OV2640 horizontal FOV is approx 65 degrees.
+    float fov = 65.0f;
+    int imgW = images[0].cols;
+    int imgH = images[0].rows;
+    int shiftPixels = static_cast<int>((m_stepDegrees / fov) * imgW);
+    
+    // Fallback bounds check
+    if (shiftPixels < 1) shiftPixels = 1;
+    if (shiftPixels > imgW) shiftPixels = imgW;
+
+    int totalW = shiftPixels * (images.size() - 1) + imgW;
+    cv::Mat canvas(imgH, totalW, images[0].type(), cv::Scalar(0, 0, 0));
+
+    for (size_t i = 0; i < images.size(); ++i) {
+        int xOffset = i * shiftPixels;
+        
+        for (int y = 0; y < imgH; ++y) {
+            for (int x = 0; x < imgW; ++x) {
+                cv::Vec3b newPix = images[i].at<cv::Vec3b>(y, x);
+                cv::Vec3b& canvasPix = canvas.at<cv::Vec3b>(y, xOffset + x);
+                
+                if (canvasPix == cv::Vec3b(0, 0, 0)) {
+                    canvasPix = newPix;
+                } else {
+                    // Cross-fade blending based on horizontal position to avoid ghosting
+                    float alpha = 1.0f;
+                    int overlapWidth = imgW - shiftPixels;
+                    if (overlapWidth > 0) {
+                        alpha = static_cast<float>(x) / overlapWidth;
+                        if (alpha > 1.0f) alpha = 1.0f;
+                        if (alpha < 0.0f) alpha = 0.0f;
+                    }
+                    
+                    canvasPix = cv::Vec3b(
+                        static_cast<uchar>(canvasPix[0] * (1.0f - alpha) + newPix[0] * alpha),
+                        static_cast<uchar>(canvasPix[1] * (1.0f - alpha) + newPix[1] * alpha),
+                        static_cast<uchar>(canvasPix[2] * (1.0f - alpha) + newPix[2] * alpha)
+                    );
+                }
+            }
+        }
+    }
+
+    return canvas;
+}
+
+void PanoramaBuilder::processStitchingAsync() {
     m_state = STITCHING;
-    setProgress(95);
+    setProgress(92);
 
     if (m_capturedImages.isEmpty()) {
         cancelPanorama();
@@ -174,61 +292,60 @@ void PanoramaBuilder::stitchImages() {
     }
 
     std::vector<cv::Mat> cvImages;
-    for (int i = 0; i < m_capturedImages.size(); ++i) {
-        QImage img = m_capturedImages[i].convertToFormat(QImage::Format_RGB888);
-        cv::Mat mat(img.height(), img.width(), CV_8UC3, (void*)img.constBits(), img.bytesPerLine());
+    for (const QImage& qimg : m_capturedImages) {
+        QImage rgb = qimg.convertToFormat(QImage::Format_RGB888);
+        cv::Mat mat(rgb.height(), rgb.width(), CV_8UC3, (void*)rgb.constBits(), rgb.bytesPerLine());
         cv::Mat bgrMat;
         cv::cvtColor(mat, bgrMat, cv::COLOR_RGB2BGR);
         cvImages.push_back(bgrMat.clone());
     }
-    
-    cv::Mat resultMat;
-    cv::Ptr<cv::Stitcher> stitcher = cv::Stitcher::create(cv::Stitcher::SCANS);
-    cv::Stitcher::Status status = stitcher->stitch(cvImages, resultMat);
-    
-    QString docsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-    QDir dir(docsPath);
-    if (!dir.exists("LibreESP")) {
-        dir.mkpath("LibreESP");
-    }
-    QString fileName = QString("Panorama_%1.jpg").arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
-    QString fullPath = dir.filePath("LibreESP/" + fileName);
 
-    if (status == cv::Stitcher::OK) {
-        if (cv::imwrite(fullPath.toStdString(), resultMat)) {
-            setLastResultPath(fullPath);
-            emit panoramaFinished(fullPath);
+    auto watcher = new QFutureWatcher<cv::Mat>(this);
+    connect(watcher, &QFutureWatcher<cv::Mat>::finished, this, [this, watcher]() {
+        cv::Mat resultMat = watcher->result();
+        watcher->deleteLater();
+
+        if (!resultMat.empty()) {
+            QString docsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+            QDir dir(docsPath);
+            if (!dir.exists("LibreESP")) {
+                dir.mkpath("LibreESP");
+            }
+            QString fileName = QString("Panorama_%1.jpg").arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
+            QString fullPath = dir.filePath("LibreESP/" + fileName);
+
+            if (cv::imwrite(fullPath.toStdString(), resultMat)) {
+                setLastResultPath(fullPath);
+                emit panoramaFinished(fullPath);
+            } else {
+                emit panoramaError("Failed to save OpenCV stitched image to disk.");
+            }
         } else {
-            emit panoramaError("Failed to save OpenCV stitched image.");
+            emit panoramaError("OpenCV feature stitching failed.");
         }
-    } else {
-        qWarning() << "OpenCV Stitching failed with status: " << status << ". Falling back to naive concatenation.";
-        
-        // Naive horizontal concatenation fallback
-        int singleWidth = m_capturedImages.first().width();
-        int height = m_capturedImages.first().height();
-        int totalWidth = singleWidth * m_capturedImages.size();
 
-        QImage result(totalWidth, height, QImage::Format_ARGB32);
-        result.fill(Qt::black);
+        m_state = IDLE;
+        setRunning(false);
+        setProgress(100);
+    });
 
-        QPainter painter(&result);
-        for (int i = 0; i < m_capturedImages.size(); ++i) {
-            painter.drawImage(i * singleWidth, 0, m_capturedImages[i]);
-        }
-        painter.end();
+    QFuture<cv::Mat> future = QtConcurrent::run([this, cvImages]() {
+        return featureBasedStitch(cvImages);
+    });
+    watcher->setFuture(future);
+}
 
-        if (result.save(fullPath, "JPG", 90)) {
-            setLastResultPath(fullPath);
-            emit panoramaFinished(fullPath);
-        } else {
-            emit panoramaError("Failed to save stitched image.");
-        }
-    }
+float PanoramaBuilder::normalizeAngle(float angle) {
+    float a = std::fmod(angle, 360.0f);
+    if (a < 0.0f) a += 360.0f;
+    return a;
+}
 
-    m_state = IDLE;
-    setRunning(false);
-    setProgress(100);
+float PanoramaBuilder::angleDiff(float from, float to) {
+    float diff = to - from;
+    while (diff > 180.0f) diff -= 360.0f;
+    while (diff <= -180.0f) diff += 360.0f;
+    return diff;
 }
 
 void PanoramaBuilder::setRunning(bool r) {

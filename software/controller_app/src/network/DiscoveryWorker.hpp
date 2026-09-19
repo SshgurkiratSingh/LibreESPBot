@@ -27,11 +27,13 @@ signals:
 
 private slots:
     void readPendingDatagrams();
+    void readPendingMdnsDatagrams();
 
 private:
     uint16_t calculateCrc16(const uint8_t* data, size_t length);
 
     NodeRegistry*  m_registry;
     QUdpSocket*    m_socket;
+    QUdpSocket*    m_mdnsSocket;
     QString        m_cameraIp;
 };

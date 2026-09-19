@@ -20,6 +20,7 @@ class TelemetryClient : public QObject {
     Q_PROPERTY(float imuTempC READ imuTempC NOTIFY telemetryUpdated)
     Q_PROPERTY(float baroTempC READ baroTempC NOTIFY telemetryUpdated)
     Q_PROPERTY(float baroPressurePa READ baroPressurePa NOTIFY telemetryUpdated)
+    Q_PROPERTY(float relativeAltitudeM READ relativeAltitudeM NOTIFY telemetryUpdated)
     Q_PROPERTY(int irArrayState READ irArrayState NOTIFY telemetryUpdated)
     Q_PROPERTY(int tof1DistMm READ tof1DistMm NOTIFY telemetryUpdated)
     Q_PROPERTY(int tof2DistMm READ tof2DistMm NOTIFY telemetryUpdated)
@@ -55,6 +56,7 @@ public:
     float imuTempC()         const;
     float baroTempC()        const;
     float baroPressurePa()   const;
+    float relativeAltitudeM()const;
     int   irArrayState()     const;
     int   tof1DistMm()       const;
     int   tof2DistMm()       const;

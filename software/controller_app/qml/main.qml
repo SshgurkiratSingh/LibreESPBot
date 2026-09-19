@@ -22,6 +22,21 @@ Window {
     Material.theme: Material.Dark
     Material.accent: Material.Green
 
+    // Auto-connect logic for last selected ESP
+    Connections {
+        target: typeof nodeRegistry !== "undefined" ? nodeRegistry : null
+        function onActiveNodeChanged(node) {
+            if (node && typeof appSettings !== "undefined") {
+                appSettings.lastActiveIp = node.ip;
+            }
+        }
+        function onNodeDiscovered(ip) {
+            if (typeof appSettings !== "undefined" && ip === appSettings.lastActiveIp) {
+                nodeRegistry.addManualNode(ip); // Auto-selects this node
+            }
+        }
+    }
+
     // Board Configuration
     property int boardModel: 0 // 0: ESP32 (Standard), 1: ESP32-S3 (Advanced)
 
@@ -78,7 +93,7 @@ Window {
         Row {
             anchors.centerIn: parent
             spacing: 12
-            Text { text: "⚠"; font.pixelSize: 22; color: "#FF4444" }
+            Text { text: "!"; font.pixelSize: 22; color: "#FF4444" }
             Text {
                 text: "Rover disconnected — motors stopped!"
                 color: "#FFFFFF"
@@ -359,21 +374,21 @@ Window {
                         
                         Button {
                             Layout.fillWidth: true
-                            text: "⚙ Settings"
+                            text: "Settings"
                             font.pixelSize: 12
                             onClicked: settingsDrawer.open()
                         }
                         
                         Button {
                             Layout.fillWidth: true
-                            text: "📝 Scripting"
+                            text: "Scripting"
                             font.pixelSize: 12
                             onClicked: scriptPanelOverlay.visible = !scriptPanelOverlay.visible
                         }
 
                         Button {
                             Layout.fillWidth: true
-                            text: "🛠 Tools"
+                            text: "Tools"
                             font.pixelSize: 12
                             onClicked: executeToolPanelOverlay.visible = !executeToolPanelOverlay.visible
                         }
@@ -409,13 +424,14 @@ Window {
                     }
                 }
 
-                // Fullscreen Aviation HUD Overlay
-                AviationHud {
+                // Fullscreen Rover HUD Overlay
+                RoverHud {
                     anchors.fill: parent
                     visible: (typeof appSettings !== "undefined") ? appSettings.displayHudDebug : true
                     pitch: typeof telemetryClient !== "undefined" ? (telemetryClient.pitch - (typeof appSettings !== "undefined" ? appSettings.pitchOffset : 0)) : 0.0
                     roll: typeof telemetryClient !== "undefined" ? (telemetryClient.roll - (typeof appSettings !== "undefined" ? appSettings.rollOffset : 0)) : 0.0
                     yaw: typeof telemetryClient !== "undefined" ? telemetryClient.headingCompassDeg : 0.0
+                    altitude: typeof telemetryClient !== "undefined" ? telemetryClient.relativeAltitudeM : 0.0
                 }
 
                 // Obstacle Alert Overlay (Clean Pill at Bottom)
@@ -622,8 +638,8 @@ Window {
                                     }
                                 }
                                 Button {
-                                    text: "🎨"
-                                    Layout.preferredWidth: 40
+                                    text: "Color"
+                                    Layout.preferredWidth: 50
                                     visible: headlightCombo.currentIndex === 3 || headlightCombo.currentIndex === 6
                                     onClicked: customColorDialog.open()
                                 }
@@ -922,6 +938,18 @@ Window {
                             from: 0.1; to: 2.0
                             value: (typeof appSettings !== "undefined") ? appSettings.steeringSensitivity : 1.0
                             onValueChanged: if (typeof appSettings !== "undefined") appSettings.steeringSensitivity = value
+                        }
+
+                        CheckBox {
+                            text: "Invert Throttle"
+                            checked: (typeof appSettings !== "undefined") ? appSettings.invertThrottle : false
+                            onCheckedChanged: if (typeof appSettings !== "undefined") appSettings.invertThrottle = checked
+                        }
+
+                        CheckBox {
+                            text: "Invert Steering"
+                            checked: (typeof appSettings !== "undefined") ? appSettings.invertSteering : false
+                            onCheckedChanged: if (typeof appSettings !== "undefined") appSettings.invertSteering = checked
                         }
 
                         Rectangle { Layout.fillWidth: true; height: 1; color: "#555" }

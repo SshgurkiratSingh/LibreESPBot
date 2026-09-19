@@ -155,6 +155,15 @@ void loop()
     // 0. Drive the LBP v2 network stack (WiFi watchdog + beacon + CMD receive)
     wm.update();
 
+    static bool wasActive = false;
+    bool isActive = wm.hasActiveClient();
+    if (isActive && !wasActive) {
+        Serial.println("[App] UDP Client CONNECTED (receiving cmds)");
+    } else if (!isActive && wasActive) {
+        Serial.println("[App] UDP Client TIMEOUT (no cmds for 3s!)");
+    }
+    wasActive = isActive;
+
     // 1. Non-blocking ToF sensor refresh (reads cached result from continuous mode)
     tofSensors.update();
 
@@ -201,7 +210,6 @@ void loop()
 
                 baseLeftPwm = (lastCommand.throttleAxis + lastCommand.steeringAxis) * speedMult;
                 baseRightPwm = (lastCommand.throttleAxis - lastCommand.steeringAxis) * speedMult;
-        }
     }
 
     // Safety Failsafe: Turn off motors if no valid command received for 1 second

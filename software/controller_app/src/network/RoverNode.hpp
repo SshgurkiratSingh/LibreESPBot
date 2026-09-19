@@ -32,6 +32,8 @@ public:
 
     // Last received full telemetry (for delegation from TelemetryClient)
     const VehicleTelemetryPacket& telemetry() const { return m_telemetry; }
+    
+    float relativeAltitudeM() const;
 
     void updateFromBeacon(const LbpBeaconPacket& bcn, const QString& senderIp);
     void updateFromTelemetry(const VehicleTelemetryPacket& tel);
@@ -59,6 +61,7 @@ private:
 
     VehicleTelemetryPacket m_telemetry;
     bool m_hasTelemetry = false;
+    float m_basePressurePa = 0.0f;
 
     static constexpr qint64 CONNECTED_TIMEOUT_MS = 5000;  // 5s no tel = disconnected
     static constexpr qint64 STALE_TIMEOUT_MS     = 30000; // 30s no anything = stale

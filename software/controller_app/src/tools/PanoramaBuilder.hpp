@@ -4,10 +4,13 @@
 #include <QImage>
 #include <QTimer>
 #include <QList>
+#include <QElapsedTimer>
 #include <opencv2/core.hpp>
 #include <opencv2/stitching.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/calib3d.hpp>
 #include "../network/CommandEmitter.hpp"
 #include "../network/TelemetryClient.hpp"
 #include "../network/VideoManager.hpp"
@@ -48,42 +51,59 @@ signals:
 
 private slots:
     void onTelemetryUpdated();
+    void onTurnPulseTimeout();
+    void onTurnSettleTimeout();
     void stabilizeAndCapture();
-    void stitchImages();
+    void processStitchingAsync();
 
 private:
     void setRunning(bool r);
     void setProgress(int p);
     void setLastResultPath(const QString& p);
-    void executeNextTurn();
-    float normalizeAngle(float angle);
-    float angleDifference(float target, float current);
+    void startTurnToHeading(float targetHeading);
+    void issueTurnPulse();
 
-    CommandEmitter* m_emitter;
+    static float normalizeAngle(float angle);
+    static float angleDiff(float from, float to);
+
+    // Feature-mapping pairwise OpenCV stitcher engine
+    cv::Mat featureBasedStitch(const std::vector<cv::Mat>& images);
+
+    CommandEmitter*  m_emitter;
     TelemetryClient* m_telemetry;
-    VideoManager* m_video;
+    VideoManager*    m_video;
 
     enum State {
         IDLE,
-        ROTATING,
+        TURNING_TO_TARGET,
         STABILIZING,
         STITCHING
     };
 
-    State m_state;
-    bool m_isRunning;
-    int m_progressPercent;
+    State   m_state;
+    bool    m_isRunning;
+    int     m_progressPercent;
     QString m_lastResultPath;
     
-    int m_stepDegrees;
-    int m_targetTotalShots;
-    int m_turnThrottle;
+    int     m_stepDegrees;
+    int     m_targetTotalShots;
+    int     m_currentShotIndex;
+    int     m_turnThrottle;
     
-    float m_initialYaw;
-    float m_targetYaw;
-    float m_lastYaw;
-    float m_totalTurned;
-    
+    float   m_startHeading;
+    float   m_targetHeading;
+
+    QTimer  m_turnPulseTimer;
+    QTimer  m_turnSettleTimer;
+    QTimer  m_stabilizeTimer;
+    QElapsedTimer m_turnStepElapsed;
+
     QList<QImage> m_capturedImages;
-    QTimer m_stabilizeTimer;
+
+    static constexpr float kTolerance   = 4.0f;   // degrees deadband
+    static constexpr int   kPulseMs     = 350;    // ms turning pulse burst
+    static constexpr int   kSettleMs    = 500;    // ms chassis & compass settle pause
+    static constexpr int   kMinTurnPWM  = 358;    // min 35% PWM out of 1023
+    static constexpr int   kMaxTurnPWM  = 512;    // max 50% PWM out of 1023
+    static constexpr int   kTurnTimeoutMs = 12000; // safety max timeout per step
 };

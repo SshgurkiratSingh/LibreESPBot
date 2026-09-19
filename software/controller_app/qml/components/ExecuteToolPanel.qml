@@ -18,7 +18,7 @@ Rectangle {
             Layout.fillWidth: true
             
             Text {
-                text: "🛠 EXECUTE TOOLS"
+                text: "EXECUTE TOOLS"
                 color: "#FF9800"
                 font.bold: true
                 font.pixelSize: 18
@@ -82,8 +82,13 @@ Rectangle {
                     
                     Text { text: "Step Degrees:"; color: "white"; font.pixelSize: 12 }
                     ComboBox {
-                        model: [30, 45, 60, 90]
+                        model: [20, 24, 30, 45]
                         currentIndex: 0
+                        Component.onCompleted: {
+                            if (typeof panoramaBuilder !== "undefined") {
+                                panoramaBuilder.stepDegrees = model[currentIndex];
+                            }
+                        }
                         onActivated: {
                             if (typeof panoramaBuilder !== "undefined") {
                                 panoramaBuilder.stepDegrees = model[currentIndex];

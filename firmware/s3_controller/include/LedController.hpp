@@ -5,11 +5,11 @@
 #include "Types.hpp"
 
 // ==========================================
-// Onboard RGB LED (WS2812 addressable)
-// ESP32-S3-DevKitC-1 -> GPIO48
+// RGB LEDs (WS2812 addressable)
 // ==========================================
-#define LED_DATA_PIN 48
-#define LED_NUM_LEDS 1
+#define LED_DATA_PIN_1 2
+#define LED_DATA_PIN_2 1
+#define LED_NUM_LEDS 3
 
 // The onboard RGB LED is bright enough to be blinding. Cap the global
 // brightness and the theoretical power draw so it can *never* run full-blast,
@@ -37,5 +37,6 @@ private:
     void applyHeadlight(const VehicleCommandPacket& cmd, unsigned long nowMs);
     void applyStatusLamp(bool linkActive, unsigned long nowMs);
 
-    CRGB leds_[LED_NUM_LEDS];
+    CRGB leds1_[LED_NUM_LEDS];
+    CRGB leds2_[LED_NUM_LEDS];
 };

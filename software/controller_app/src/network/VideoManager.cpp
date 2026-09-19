@@ -24,9 +24,21 @@ VideoManager::VideoManager(QObject *parent)
     m_timer->setSingleShot(true);
     connect(m_timer, &QTimer::timeout, this, &VideoManager::fetchNextFrame);
     
-    m_faceCascadeLoaded = m_faceCascade.load("haarcascade_frontalface_default.xml");
-    if (!m_faceCascadeLoaded) {
-        qWarning() << "Failed to load haarcascade_frontalface_default.xml";
+    m_faceCascadeLoaded = false;
+    QString cascadePath = "haarcascade_frontalface_default.xml";
+    QFileInfo fileInfo(cascadePath);
+    if (fileInfo.exists() && fileInfo.size() > 1000) {
+        try {
+            m_faceCascadeLoaded = m_faceCascade.load(cascadePath.toStdString());
+        } catch (const std::exception& e) {
+            qWarning() << "VideoManager: Exception while loading face cascade:" << e.what();
+            m_faceCascadeLoaded = false;
+        } catch (...) {
+            qWarning() << "VideoManager: Unknown exception while loading face cascade.";
+            m_faceCascadeLoaded = false;
+        }
+    } else {
+        qWarning() << "VideoManager: haarcascade_frontalface_default.xml missing or invalid size:" << (fileInfo.exists() ? fileInfo.size() : -1);
     }
 }
 
