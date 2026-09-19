@@ -6,6 +6,18 @@ void WifiManager::begin(const char* ssid, const char* password) {
     strncpy(m_ssid, ssid, sizeof(m_ssid) - 1);
     strncpy(m_password, password, sizeof(m_password) - 1);
     memset(&m_beacon, 0, sizeof(m_beacon));
+    
+    // Register WiFi event handler to debug disconnects
+    WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+        if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+            Serial.printf("[WiFiEvent] Disconnected from station, reason: %d\n", info.wifi_sta_disconnected.reason);
+        } else if (event == ARDUINO_EVENT_WIFI_STA_CONNECTED) {
+            Serial.println("[WiFiEvent] Connected to station");
+        } else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+            Serial.println("[WiFiEvent] Got IP address");
+        }
+    });
+
     tryConnect();
 }
 
