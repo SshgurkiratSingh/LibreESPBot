@@ -1,57 +1,29 @@
 #include "DiscoveryWorker.hpp"
+#include "NodeRegistry.hpp"
+#include "RoverNode.hpp"
 #include <QNetworkDatagram>
 #include <QDebug>
 
-DiscoveryWorker::DiscoveryWorker(QObject *parent) 
-    : QObject(parent), m_socket(new QUdpSocket(this)) {
+DiscoveryWorker::DiscoveryWorker(NodeRegistry* registry, QObject* parent)
+    : QObject(parent)
+    , m_registry(registry)
+    , m_socket(new QUdpSocket(this))
+{
 }
 
 DiscoveryWorker::~DiscoveryWorker() {
     m_socket->close();
 }
 
-#include <QNetworkInterface>
-
 void DiscoveryWorker::startDiscovery() {
-    // Listen for mDNS traffic on multicast group 224.0.0.251 port 5353
-    if (m_socket->bind(QHostAddress::AnyIPv4, 5353, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
-        
-        QHostAddress groupAddress("224.0.0.251");
-        
-        // CRITICAL FIX FOR WINDOWS/ANDROID:
-        // Do not rely on the OS to pick the default interface for multicast.
-        // Explicitly join the multicast group on EVERY active, multicast-capable network interface.
-        const QList<QNetworkInterface> interfaces = QNetworkInterface::allInterfaces();
-        for (const QNetworkInterface &iface : interfaces) {
-            if ((iface.flags() & QNetworkInterface::IsUp) && 
-                (iface.flags() & QNetworkInterface::CanMulticast) &&
-                !(iface.flags() & QNetworkInterface::IsLoopBack)) {
-                
-                m_socket->joinMulticastGroup(groupAddress, iface);
-            }
-        }
-        
+    // Bind to LBP_PORT_BEACON (4210) — dedicated, no OS mDNS interference.
+    // ShareAddress allows multiple sockets on the same port (useful on Android).
+    if (m_socket->bind(QHostAddress::AnyIPv4, LBP_PORT_BEACON,
+                       QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
         connect(m_socket, &QUdpSocket::readyRead, this, &DiscoveryWorker::readPendingDatagrams);
-        qDebug() << "DiscoveryWorker started mDNS listening on all active interfaces.";
+        qDebug() << "[DiscoveryWorker] Listening for LBP2 beacons on port" << LBP_PORT_BEACON;
     } else {
-        qWarning() << "DiscoveryWorker failed to bind to mDNS port.";
-    }
-}
-
-void DiscoveryWorker::setManualIp(const QString& ip) {
-    if (m_roverIp != ip) {
-        m_roverIp = ip;
-        m_hardwareProfile = "Manual Override";
-        emit roverDiscovered(m_roverIp, m_hardwareProfile);
-        qDebug() << "Manual IP set to:" << m_roverIp;
-    }
-}
-
-void DiscoveryWorker::setManualCameraIp(const QString& ip) {
-    if (m_cameraIp != ip) {
-        m_cameraIp = ip;
-        emit cameraDiscovered(m_cameraIp);
-        qDebug() << "Manual Camera IP set to:" << m_cameraIp;
+        qWarning() << "[DiscoveryWorker] Failed to bind to port" << LBP_PORT_BEACON;
     }
 }
 
@@ -59,38 +31,67 @@ void DiscoveryWorker::readPendingDatagrams() {
     while (m_socket->hasPendingDatagrams()) {
         QNetworkDatagram datagram = m_socket->receiveDatagram();
         QByteArray data = datagram.data();
-        
-        // Very basic mock mDNS parser looking for our specific service string
-        // In a real Qt app, QZeroConf or QDnsLookup is preferred, but for raw UDP:
-        if (data.contains("_roverctrl._udp.local")) {
-            QString senderIp = datagram.senderAddress().toString();
-            if (senderIp.startsWith("::ffff:")) {
-                senderIp = senderIp.mid(7);
-            }
-            
-            // Extract TXT records manually (mock logic)
-            // Example TXT structure embedded in UDP packet payload
-            int drvIdx = data.indexOf("drv=");
-            if (drvIdx != -1) {
-                if (m_roverIp != senderIp) {
-                    m_roverIp = senderIp;
-                    m_hardwareProfile = "Rover V2"; // Extract actual string in prod
-                    emit roverDiscovered(m_roverIp, m_hardwareProfile);
-                    qDebug() << "Discovered Rover at:" << m_roverIp;
-                }
-            }
+
+        // Need at least 2 bytes for preamble check
+        if (data.size() < 2) continue;
+
+        const uint16_t preamble = *reinterpret_cast<const uint16_t*>(data.constData());
+        if (preamble != LBP_PREAMBLE_BCN) continue;
+        if (data.size() != static_cast<int>(sizeof(LbpBeaconPacket))) {
+            qWarning() << "[DiscoveryWorker] Beacon size mismatch: expected"
+                       << sizeof(LbpBeaconPacket) << "got" << data.size();
+            continue;
         }
-        else if (data.contains("_camctrl._udp.local")) {
-            QString senderIp = datagram.senderAddress().toString();
-            if (senderIp.startsWith("::ffff:")) {
-                senderIp = senderIp.mid(7);
-            }
-            
-            if (m_cameraIp != senderIp) {
-                m_cameraIp = senderIp;
-                emit cameraDiscovered(m_cameraIp);
-                qDebug() << "Discovered Camera at:" << m_cameraIp;
-            }
+
+        LbpBeaconPacket bcn;
+        memcpy(&bcn, data.constData(), sizeof(bcn));
+
+        // Validate CRC
+        size_t dataLen = sizeof(LbpBeaconPacket) - sizeof(uint16_t);
+        if (calculateCrc16(reinterpret_cast<const uint8_t*>(&bcn), dataLen) != bcn.crc16) {
+            qWarning() << "[DiscoveryWorker] Beacon CRC mismatch";
+            continue;
         }
+
+        QString senderIp = datagram.senderAddress().toString();
+        if (senderIp.startsWith(QStringLiteral("::ffff:")))
+            senderIp = senderIp.mid(7);
+
+        // Null-terminate boardName for safety before making a QString
+        char safeName[17];
+        memcpy(safeName, bcn.boardName, 16);
+        safeName[16] = '\0';
+
+        qDebug() << "[DiscoveryWorker] Beacon from" << senderIp
+                 << "board:" << safeName
+                 << "fw:" << bcn.fwMajor << "." << bcn.fwMinor << "." << bcn.fwPatch
+                 << "uptime:" << bcn.uptimeMs << "ms";
+
+        // Route to NodeRegistry — creates node if new, updates if existing
+        RoverNode* node = m_registry->nodeForIp(senderIp);
+        node->updateFromBeacon(bcn, senderIp);
     }
+}
+
+void DiscoveryWorker::setManualIp(const QString& ip) {
+    qDebug() << "[DiscoveryWorker] Manual rover IP:" << ip;
+    m_registry->addManualNode(ip);
+}
+
+void DiscoveryWorker::setManualCameraIp(const QString& ip) {
+    if (m_cameraIp != ip) {
+        m_cameraIp = ip;
+        emit cameraDiscovered(ip);
+        qDebug() << "[DiscoveryWorker] Manual camera IP:" << ip;
+    }
+}
+
+uint16_t DiscoveryWorker::calculateCrc16(const uint8_t* data, size_t length) {
+    uint16_t crc = 0xFFFF;
+    for (size_t i = 0; i < length; ++i) {
+        crc ^= static_cast<uint16_t>(data[i]) << 8;
+        for (int j = 0; j < 8; ++j)
+            crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
+    }
+    return crc;
 }

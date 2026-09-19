@@ -2,15 +2,16 @@
 
 #include <QObject>
 #include <QUdpSocket>
-#include <QNetworkDatagram>
-#include <QVariant>
 #include <QTimer>
+#include <QVariantList>
+#include "NodeRegistry.hpp"
 #include "../core/Types.hpp"
 
 class TelemetryClient : public QObject {
     Q_OBJECT
-    
-    Q_PROPERTY(QVariantList discoveredIps READ discoveredIps NOTIFY discoveredIpsChanged)
+    // All data properties now delegate to the active node.
+    // These are kept for QML backwards-compatibility.
+    Q_PROPERTY(bool connected READ connected NOTIFY connectionStateChanged)
     Q_PROPERTY(float pitch READ pitch NOTIFY telemetryUpdated)
     Q_PROPERTY(float roll READ roll NOTIFY telemetryUpdated)
     Q_PROPERTY(float yaw READ yaw NOTIFY telemetryUpdated)
@@ -31,58 +32,67 @@ class TelemetryClient : public QObject {
     Q_PROPERTY(int activeImuType READ activeImuType NOTIFY telemetryUpdated)
     Q_PROPERTY(int activeMagType READ activeMagType NOTIFY telemetryUpdated)
     Q_PROPERTY(int statusFlags READ statusFlags NOTIFY telemetryUpdated)
-    Q_PROPERTY(bool connected READ connected NOTIFY connectionStateChanged)
+    Q_PROPERTY(QString firmwareVersion READ firmwareVersion NOTIFY telemetryUpdated)
+    Q_PROPERTY(QString boardName READ boardName NOTIFY telemetryUpdated)
+    Q_PROPERTY(bool versionMismatch READ versionMismatch NOTIFY telemetryUpdated)
 
 public:
-    explicit TelemetryClient(QObject *parent = nullptr);
+    explicit TelemetryClient(NodeRegistry* registry, QObject* parent = nullptr);
     ~TelemetryClient();
 
-    void startListening(quint16 port = 8889);
-    bool connected() const { return m_connected; }
+    void startListening(quint16 port = LBP_PORT_TEL);
     QUdpSocket* socket() const { return m_socket; }
-    
-    QVariantList discoveredIps() const { return m_discoveredIps; }
 
-    float pitch() const { return m_packet.pitchDeg; }
-    float roll() const { return m_packet.rollDeg; }
-    float yaw() const { return m_packet.yawDeg; }
-    float headingCompassDeg() const { return m_packet.headingCompassDeg; }
-    float batteryVoltage() const { return m_packet.batteryVoltage; }
-    float imuTempC() const { return m_packet.imuTempC; }
-    float baroTempC() const { return m_packet.baroTempC; }
-    float baroPressurePa() const { return m_packet.baroPressurePa; }
-    int irArrayState() const { return m_packet.irArrayState; }
-    int tof1DistMm() const { return m_packet.tof1DistMm; }
-    int tof2DistMm() const { return m_packet.tof2DistMm; }
-    int servoAngleDeg() const { return m_packet.servoAngleDeg; }
-    float linearAccX() const { return m_packet.linearAccX; }
-    float linearAccY() const { return m_packet.linearAccY; }
-    float linearAccZ() const { return m_packet.linearAccZ; }
-    int motorLeftPwm() const { return m_packet.motorLeftPwm; }
-    int motorRightPwm() const { return m_packet.motorRightPwm; }
-    int activeImuType() const { return m_packet.activeImuType; }
-    int activeMagType() const { return m_packet.activeMagType; }
-    int statusFlags() const { return m_packet.statusFlags; }
+    // Connection state — true only if the active node has telemetry and is connected
+    bool connected() const;
+
+    // Telemetry accessors — all delegate to activeNode()->telemetry()
+    float pitch()            const;
+    float roll()             const;
+    float yaw()              const;
+    float headingCompassDeg()const;
+    float batteryVoltage()   const;
+    float imuTempC()         const;
+    float baroTempC()        const;
+    float baroPressurePa()   const;
+    int   irArrayState()     const;
+    int   tof1DistMm()       const;
+    int   tof2DistMm()       const;
+    int   servoAngleDeg()    const;
+    float linearAccX()       const;
+    float linearAccY()       const;
+    float linearAccZ()       const;
+    int   motorLeftPwm()     const;
+    int   motorRightPwm()    const;
+    int   activeImuType()    const;
+    int   activeMagType()    const;
+    int   statusFlags()      const;
+    QString firmwareVersion()const;
+    QString boardName()      const;
+    bool  versionMismatch()  const;
+
+    // Ping support — CommandEmitter calls this to track RTT per-node
+    void recordPingSent(const QString& ip, uint16_t seqId, qint64 timestampMs);
 
 signals:
     void telemetryUpdated();
-    void connectionLost();
     void connectionStateChanged();
-    void discoveredIpsChanged();
-    void botDiscovered(QString ip);
+    void connectionLost();
 
 private slots:
     void readPendingDatagrams();
     void checkConnectionHealth();
 
 private:
-    uint16_t calculateCrc16(const uint8_t *data, size_t length);
+    uint16_t calculateCrc16(const uint8_t* data, size_t length);
 
-    QUdpSocket *m_socket;
-    VehicleTelemetryPacket m_packet;
-    qint64 m_lastPacketTime;
-    QVariantList m_discoveredIps;
-    QTimer *m_watchdogTimer;
-    bool m_connected;
-    qint64 m_logRateLimit; // For rate-limiting debug spam
+    NodeRegistry*  m_registry;
+    QUdpSocket*    m_socket;
+    QTimer*        m_watchdogTimer;
+
+    bool m_wasConnected = false;
+
+    // Ping tracking: seqId -> {ip, timestampMs}
+    struct PingRecord { QString ip; qint64 sentMs; };
+    QMap<uint16_t, PingRecord> m_pendingPings;
 };

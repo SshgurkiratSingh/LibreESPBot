@@ -1,15 +1,25 @@
 #include "CommandEmitter.hpp"
+#include "NodeRegistry.hpp"
+#include "TelemetryClient.hpp"
+#include <QDateTime>
 #include <QDebug>
-CommandEmitter::CommandEmitter(QObject *parent) 
-    : QObject(parent), m_socket(new QUdpSocket(this)), m_ownsSocket(true), m_timer(new QTimer(this)) {
-    
+
+CommandEmitter::CommandEmitter(NodeRegistry* registry, QObject* parent)
+    : QObject(parent)
+    , m_registry(registry)
+    , m_socket(new QUdpSocket(this))
+    , m_ownsSocket(true)
+    , m_timer(new QTimer(this))
+    , m_pingTimer(new QTimer(this))
+{
     memset(&m_packet, 0, sizeof(VehicleCommandPacket));
-    m_packet.preamble = 0x55AA;
+    m_packet.preamble   = LBP_PREAMBLE_CMD;
     m_packet.sequenceId = 0;
-    
-    // Default to own socket, but it will be replaced by shared socket
-    
-    connect(m_timer, &QTimer::timeout, this, &CommandEmitter::sendCommandPacket);
+
+    connect(m_timer,     &QTimer::timeout, this, &CommandEmitter::sendCommandPacket);
+    connect(m_pingTimer, &QTimer::timeout, this, &CommandEmitter::sendPing);
+    m_pingTimer->setInterval(1000); // 1 Hz ping
+    m_pingTimer->start();
 }
 
 CommandEmitter::~CommandEmitter() {
@@ -28,8 +38,14 @@ void CommandEmitter::setSharedSocket(QUdpSocket* socket) {
 }
 
 void CommandEmitter::setTargetAddress(const QString& ip, quint16 port) {
-    m_targetIp = QHostAddress(ip);
+    bool isNewIp = (m_targetIp != QHostAddress(ip));
+    m_targetIp   = QHostAddress(ip);
     m_targetPort = port;
+    if (isNewIp) {
+        // New session — reset sequence counter so rover can detect restarts
+        m_packet.sequenceId = 0;
+        qDebug() << "[CommandEmitter] New target" << ip << "— sequence reset";
+    }
 }
 
 void CommandEmitter::startEmitting(int intervalMs) {
@@ -39,9 +55,8 @@ void CommandEmitter::startEmitting(int intervalMs) {
 }
 
 void CommandEmitter::stopEmitting() {
-    if (m_timer->isActive()) {
-        m_timer->stop();
-    }
+    m_timer->stop();
+    // Keep ping timer running — it maintains link awareness even when not commanding
 }
 
 void CommandEmitter::updateThrottle(int throttle) {
@@ -88,18 +103,39 @@ void CommandEmitter::sendCommandPacket() {
     if (m_targetIp.isNull()) return;
 
     m_packet.sequenceId++;
-    
+
     size_t dataLen = sizeof(VehicleCommandPacket) - sizeof(uint16_t);
     m_packet.crc16 = calculateCrc16(reinterpret_cast<const uint8_t*>(&m_packet), dataLen);
 
     QByteArray datagram(reinterpret_cast<const char*>(&m_packet), sizeof(VehicleCommandPacket));
     qint64 sent = m_socket->writeDatagram(datagram, m_targetIp, m_targetPort);
-    
+
     // Log once per second (every 50 packets at 50Hz)
     if (m_packet.sequenceId % 50 == 1) {
-        qDebug() << "[CMD] Sent" << sent << "bytes to" << m_targetIp.toString() << ":" << m_targetPort
-                 << "| pktSize:" << sizeof(VehicleCommandPacket)
-                 << "| seq:" << m_packet.sequenceId;
+        qDebug() << "[CMD] seq:" << m_packet.sequenceId
+                 << "to" << m_targetIp.toString() << ":" << m_targetPort
+                 << "bytes:" << sent;
+    }
+}
+
+void CommandEmitter::sendPing() {
+    if (m_targetIp.isNull() || !m_socket) return;
+
+    LbpPingPacket ping;
+    ping.preamble  = LBP_PREAMBLE_PING;
+    ping.seqId     = ++m_pingSeqId;
+    ping.clientMs  = static_cast<uint32_t>(QDateTime::currentMSecsSinceEpoch() & 0xFFFFFFFF);
+
+    size_t dataLen = sizeof(LbpPingPacket) - sizeof(uint16_t);
+    ping.crc16 = calculateCrc16(reinterpret_cast<const uint8_t*>(&ping), dataLen);
+
+    QByteArray datagram(reinterpret_cast<const char*>(&ping), sizeof(LbpPingPacket));
+    m_socket->writeDatagram(datagram, m_targetIp, m_targetPort);
+
+    // Tell TelemetryClient so it can match the PONG
+    if (m_telemetryClient) {
+        m_telemetryClient->recordPingSent(m_targetIp.toString(), ping.seqId,
+                                          static_cast<qint64>(ping.clientMs));
     }
 }
 

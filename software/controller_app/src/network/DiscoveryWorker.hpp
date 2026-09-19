@@ -2,38 +2,36 @@
 
 #include <QObject>
 #include <QUdpSocket>
+#include <QNetworkInterface>
+#include "../core/Types.hpp"
+
+class NodeRegistry;
 
 class DiscoveryWorker : public QObject {
     Q_OBJECT
-    
-    Q_PROPERTY(QString roverIp READ roverIp NOTIFY roverDiscovered)
-    Q_PROPERTY(QString hardwareProfile READ hardwareProfile NOTIFY roverDiscovered)
-    Q_PROPERTY(QString cameraIp READ cameraIp NOTIFY cameraDiscovered)
 
 public:
-    explicit DiscoveryWorker(QObject *parent = nullptr);
+    explicit DiscoveryWorker(NodeRegistry* registry, QObject* parent = nullptr);
     ~DiscoveryWorker();
 
     void startDiscovery();
-    
-public slots:
-    void setManualIp(const QString& ip);
-    void setManualCameraIp(const QString& ip);
-    
-    QString roverIp() const { return m_roverIp; }
-    QString hardwareProfile() const { return m_hardwareProfile; }
+
+    // Manual overrides (still supported for users who know the IP)
+    Q_INVOKABLE void setManualIp(const QString& ip);
+    Q_INVOKABLE void setManualCameraIp(const QString& ip);
+
     QString cameraIp() const { return m_cameraIp; }
 
 signals:
-    void roverDiscovered(const QString& ip, const QString& profile);
     void cameraDiscovered(const QString& ip);
 
 private slots:
     void readPendingDatagrams();
 
 private:
-    QUdpSocket *m_socket;
-    QString m_roverIp;
-    QString m_hardwareProfile;
-    QString m_cameraIp;
+    uint16_t calculateCrc16(const uint8_t* data, size_t length);
+
+    NodeRegistry*  m_registry;
+    QUdpSocket*    m_socket;
+    QString        m_cameraIp;
 };

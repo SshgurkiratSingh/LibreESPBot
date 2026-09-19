@@ -6,6 +6,8 @@
 #include "network/CommandEmitter.hpp"
 #include "network/DiscoveryWorker.hpp"
 #include "network/VideoManager.hpp"
+#include "network/NodeRegistry.hpp"
+#include "network/RoverNode.hpp"
 #include "mapping/RadarPointCloud.hpp"
 #include "core/Types.hpp"
 #include "core/DebugLogger.hpp"
@@ -72,60 +74,69 @@ int main(int argc, char *argv[])
 #endif
 
     // Instantiate backend workers
-    TelemetryClient telemetryClient;
-    CommandEmitter commandEmitter;
-    DiscoveryWorker discoveryWorker;
-    VideoManager videoManager;
-    RadarPointCloud radarCloud;
-    AppSettings appSettings;
-    ScriptEngine scriptEngine(&commandEmitter, &telemetryClient);
-    JoystickHandler joystickHandler;
-    PanoramaBuilder panoramaBuilder(&commandEmitter, &telemetryClient, &videoManager);
+    NodeRegistry     nodeRegistry;
+    TelemetryClient  telemetryClient(&nodeRegistry);
+    CommandEmitter   commandEmitter(&nodeRegistry);
+    DiscoveryWorker  discoveryWorker(&nodeRegistry);
+    VideoManager     videoManager;
+    RadarPointCloud  radarCloud;
+    AppSettings      appSettings;
+    ScriptEngine     scriptEngine(&commandEmitter, &telemetryClient);
+    JoystickHandler  joystickHandler;
+    PanoramaBuilder  panoramaBuilder(&commandEmitter, &telemetryClient, &videoManager);
     TurningCalibrator turningCalibrator(&commandEmitter, &telemetryClient);
+
+    // Cross-link telemetry ↔ commandEmitter for PONG tracking
+    commandEmitter.setTelemetryClient(&telemetryClient);
 
     // Expose to QML
     videoManager.setCommandEmitter(&commandEmitter);
-    
+
     engine.rootContext()->setContextProperty("telemetryClient", &telemetryClient);
-    engine.rootContext()->setContextProperty("commandEmitter", &commandEmitter);
+    engine.rootContext()->setContextProperty("commandEmitter",  &commandEmitter);
     engine.rootContext()->setContextProperty("discoveryWorker", &discoveryWorker);
-    engine.rootContext()->setContextProperty("videoManager", &videoManager);
-    engine.rootContext()->setContextProperty("radarCloud", &radarCloud);
-    engine.rootContext()->setContextProperty("appSettings", &appSettings);
-    engine.rootContext()->setContextProperty("DebugLogger", DebugLogger::instance());
-    engine.rootContext()->setContextProperty("scriptEngine", &scriptEngine);
+    engine.rootContext()->setContextProperty("videoManager",    &videoManager);
+    engine.rootContext()->setContextProperty("radarCloud",      &radarCloud);
+    engine.rootContext()->setContextProperty("appSettings",     &appSettings);
+    engine.rootContext()->setContextProperty("DebugLogger",     DebugLogger::instance());
+    engine.rootContext()->setContextProperty("scriptEngine",    &scriptEngine);
     engine.rootContext()->setContextProperty("joystickHandler", &joystickHandler);
     engine.rootContext()->setContextProperty("panoramaBuilder", &panoramaBuilder);
     engine.rootContext()->setContextProperty("turningCalibrator", &turningCalibrator);
+    engine.rootContext()->setContextProperty("nodeRegistry",    &nodeRegistry);
 
     // Start networking layers
     discoveryWorker.startDiscovery();
-    telemetryClient.startListening(8889);
-    
+    telemetryClient.startListening(LBP_PORT_TEL);
+
     // Diagnostic: print expected struct sizes so we can verify firmware/app agreement
     qDebug() << "[DIAG] sizeof(VehicleTelemetryPacket) =" << sizeof(VehicleTelemetryPacket);
     qDebug() << "[DIAG] sizeof(VehicleCommandPacket)   =" << sizeof(VehicleCommandPacket);
-    
-    // Bind settings
+    qDebug() << "[DIAG] sizeof(LbpBeaconPacket)        =" << sizeof(LbpBeaconPacket);
+    qDebug() << "[DIAG] LBP_PROTOCOL_VERSION           =" << static_cast<int>(LBP_PROTOCOL_VERSION);
+
+    // CommandEmitter MUST share the TelemetryClient's bound socket.
+    // This punches one bidirectional UDP hole in the stateful firewall.
+    commandEmitter.setSharedSocket(telemetryClient.socket());
+
+    // Auto-configure CommandEmitter when user selects a node, or when the
+    // first node is auto-selected by NodeRegistry.
+    QObject::connect(&nodeRegistry, &NodeRegistry::activeNodeChanged,
+                     &app, [&commandEmitter](RoverNode* node) {
+        if (node) {
+            qDebug() << "[main] Active node changed to" << node->ip() << "-" << node->boardName();
+            commandEmitter.setTargetAddress(node->ip(), LBP_PORT_CMD);
+            commandEmitter.startEmitting(20);
+        } else {
+            commandEmitter.stopEmitting();
+        }
+    });
+
+    // Bind video manager FPS to settings
     videoManager.setTargetFps(appSettings.cameraFps());
     QObject::connect(&appSettings, &AppSettings::cameraFpsChanged, [&](){
         videoManager.setTargetFps(appSettings.cameraFps());
     });
-    
-    // CommandEmitter MUST share the TelemetryClient's bound socket (8889).
-    // This punches exactly one bidirectional UDP hole in the stateful firewall,
-    // and prevents Linux from dropping packets via dual-socket load balancing.
-    commandEmitter.setSharedSocket(telemetryClient.socket());
-    
-    // Command emitter target is dynamically set upon mDNS discovery, but we can set a default
-    commandEmitter.setTargetAddress("192.168.4.1", 8888); 
-    
-    QObject::connect(&discoveryWorker, &DiscoveryWorker::roverDiscovered,
-                     &app, [&commandEmitter](const QString& ip, const QString& profile) {
-        qDebug() << "Auto-configuring CommandEmitter to discovered IP:" << ip;
-        commandEmitter.setTargetAddress(ip, 8888);
-    });
-    commandEmitter.startEmitting(20);
 
     const QUrl url(u"qrc:/RoverControl/qml/main.qml"_qs);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,

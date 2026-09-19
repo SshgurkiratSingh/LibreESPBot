@@ -2,10 +2,13 @@
 
 #ifndef MODE_CALIBRATION
 
-#include <WiFi.h>
-#include <WiFiUdp.h>
-#include <ESPmDNS.h>
+// ── LBP v2 Firmware Version ───────────────────────────────────────────────────
+#define FW_MAJOR 4
+#define FW_MINOR 4
+#define FW_PATCH 0
+
 #include "Types.hpp"
+#include "WifiManager.hpp"
 
 // Hardware Drivers
 #include "TB6612_Driver.hpp"
@@ -33,10 +36,8 @@ bool imuOk = false;
 bool compassOk = false;
 bool tofOk = false;
 
-WiFiUDP udp;
-const uint16_t UDP_PORT = 8888;
-IPAddress remoteIP;
-uint16_t remotePort = 0;
+// LBP v2 network stack — replaces raw WiFiUDP globals
+WifiManager wm;
 
 VehicleTelemetryPacket telemetry;
 VehicleCommandPacket lastCommand;
@@ -56,10 +57,7 @@ CRGB ledsLeft[NUM_LEDS];
 CRGB ledsRight[NUM_LEDS];
 
 unsigned long lastTelemetryTime = 0;
-const unsigned long TELEMETRY_INTERVAL = 50; // 20 Hz (Reduced from 50Hz to prevent UDP ENOMEM Error 12)
-
-unsigned long lastDiscoveryTime = 0;
-const unsigned long DISCOVERY_INTERVAL = 1000; // 1 Hz
+const unsigned long TELEMETRY_INTERVAL = 50; // 20 Hz
 
 // ============================================================
 // Setup
@@ -110,50 +108,19 @@ void setup()
     FastLED.setBrightness(100);
     FastLED.clear(true);
 
-    // Connect to WiFi as station
-    WiFi.mode(WIFI_STA);
-    WiFi.begin("Airtel_Node", "air66343");
+    // Start LBP v2 network stack (non-blocking — WiFi connects asynchronously)
+    wm.begin("Airtel_Node", "air66343");
+    wm.setBeaconInfo(BOARD_ROVER_V2, FW_MAJOR, FW_MINOR, FW_PATCH, 2, "Rover V2 STD");
+    Serial.println("LBP v2 stack started (non-blocking).");
 
-    Serial.print("Connecting to WiFi");
-    int wifi_retries = 0;
-    while (WiFi.status() != WL_CONNECTED && wifi_retries < 40)
-    {
-        delay(500);
-        Serial.print(".");
-        wifi_retries++;
-    }
-
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        Serial.println("\nConnected to WiFi.");
-        WiFi.setSleep(false); // Disable Wi-Fi power saving to fix UDP dropouts!
-        Serial.print("IP address: ");
-        Serial.println(WiFi.localIP());
-
-        // Setup mDNS for auto-discovery by the controller app
-        if (!MDNS.begin("esp32rover"))
-        {
-            Serial.println("Error setting up MDNS responder!");
-        }
-        else
-        {
-            MDNS.addService("roverctrl", "udp", UDP_PORT);
-            MDNS.addServiceTxt("roverctrl", "udp", "drv", "TB6612");
-            MDNS.addServiceTxt("roverctrl", "udp", "hw", "Rover V2");
-            Serial.println("mDNS responder started: _roverctrl._udp");
-        }
-    }
-    else
-    {
-        Serial.println("\nFailed to connect to WiFi.");
-    }
-
-    udp.begin(UDP_PORT);
-    Serial.println("UDP listener started.");
-
+    // Initialize Telemetry frame fields that never change
     memset(&telemetry, 0, sizeof(VehicleTelemetryPacket));
-    telemetry.preamble = 0xAA55;
-    telemetry.hardwareRev = 2; // V2
+    telemetry.preamble    = LBP_PREAMBLE_TEL;
+    telemetry.hardwareRev = 2;
+    telemetry.fwMajor     = FW_MAJOR;
+    telemetry.fwMinor     = FW_MINOR;
+    telemetry.fwPatch     = FW_PATCH;
+    telemetry.boardType   = BOARD_ROVER_V2;
 }
 
 // ============================================================
@@ -185,52 +152,24 @@ uint16_t calculateCrc16(const uint8_t *data, size_t length)
 // ============================================================
 void loop()
 {
-    // 0. WiFi Watchdog: auto-reconnect if disconnected
-    static uint32_t lastWifiCheck = 0;
-    if (millis() - lastWifiCheck > 5000) { // Check every 5 seconds
-        lastWifiCheck = millis();
-        if (WiFi.status() != WL_CONNECTED) {
-            Serial.println("[WiFi] Disconnected! Reconnecting...");
-            WiFi.disconnect();
-            WiFi.begin("Airtel_Node", "air66343");
-            // Stop motors during reconnect for safety
-            baseLeftPwm = 0;
-            baseRightPwm = 0;
-        }
-    }
+    // 0. Drive the LBP v2 network stack (WiFi watchdog + beacon + CMD receive)
+    wm.update();
 
     // 1. Non-blocking ToF sensor refresh (reads cached result from continuous mode)
     tofSensors.update();
 
     // 2. Check for incoming UDP Commands
-    bool newCommandReceived = false;
+    bool newCommandReceived = wm.readCommand(lastCommand);
+
     static bool sizePrinted = false;
     if (!sizePrinted) {
-        Serial.printf("Cmd Size: %d, Tel Size: %d\n", sizeof(VehicleCommandPacket), sizeof(VehicleTelemetryPacket));
+        Serial.printf("Cmd Size: %d, Tel Size: %d\n",
+                      sizeof(VehicleCommandPacket), sizeof(VehicleTelemetryPacket));
         sizePrinted = true;
-    }
-    int packetSize = udp.parsePacket();
-    while (packetSize > 0)
-    {
-        if (packetSize == sizeof(VehicleCommandPacket)) {
-            udp.read((unsigned char *)&lastCommand, sizeof(VehicleCommandPacket));
-            newCommandReceived = true;
-        } else {
-            udp.flush(); // Discard invalid packets
-        }
-        packetSize = udp.parsePacket();
     }
 
     if (newCommandReceived)
     {
-        size_t dataLen = sizeof(VehicleCommandPacket) - sizeof(uint16_t);
-        uint16_t calcCrc = calculateCrc16((const uint8_t *)&lastCommand, dataLen);
-
-        if (lastCommand.preamble == 0x55AA && lastCommand.crc16 == calcCrc)
-        {
-            // Save remote IP for telemetry reply
-            remoteIP = udp.remoteIP();
-            remotePort = udp.remotePort();
 
 
 
@@ -478,28 +417,20 @@ void loop()
         }
         FastLED.show();
 
-        // Calculate CRC
+        // Compute CRC and send via LBP v2 stack
         size_t tDataLen = sizeof(VehicleTelemetryPacket) - sizeof(uint16_t);
-        telemetry.crc16 = calculateCrc16((const uint8_t *)&telemetry, tDataLen);
-
-        if (remotePort != 0)
-        {
-            udp.beginPacket(remoteIP, 8889); // LibreESPBot telemetry listener port
-            udp.write((const uint8_t *)&telemetry, sizeof(VehicleTelemetryPacket));
-            udp.endPacket();
+        // WifiManager's validateCrc covers the last 2 bytes; we fill them before sending
+        uint16_t crc = 0xFFFF;
+        const uint8_t* tBuf = reinterpret_cast<const uint8_t*>(&telemetry);
+        for (size_t i = 0; i < tDataLen; ++i) {
+            crc ^= static_cast<uint16_t>(tBuf[i]) << 8;
+            for (int j = 0; j < 8; ++j)
+                crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
         }
+        telemetry.crc16 = crc;
+        wm.sendTelemetry(telemetry);
     } // End of !lastCommand.enableNoLagMode block for LED & Telemetry
-
-    // 4. Discovery Beacon (1Hz)
-    // The Qt app is passively listening on 5353 for a packet containing _roverctrl._udp.local and drv=
-    if (millis() - lastDiscoveryTime >= DISCOVERY_INTERVAL)
-    {
-        lastDiscoveryTime = millis();
-        udp.beginPacket(IPAddress(224, 0, 0, 251), 5353);
-        const char *beacon = "_roverctrl._udp.local\0drv=TB6612\0hw=Rover V2";
-        udp.write((const uint8_t *)beacon, 44);
-        udp.endPacket();
-    }
+    // Discovery beacon is now handled inside wm.update() at 1 Hz
 }
 
 #endif
