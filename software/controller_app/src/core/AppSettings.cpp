@@ -26,6 +26,14 @@ AppSettings::AppSettings(QObject *parent)
     m_hudOpacity = m_settings.value("HUD/Opacity", 0.8f).toFloat();
     m_hudColor = m_settings.value("HUD/Color", "#00E5FF").toString();
     m_lastActiveIp = m_settings.value("Network/LastActiveIp", "").toString();
+    m_aiApiKey = m_settings.value("AI/ApiKey", "").toString();
+    m_aiModelName = m_settings.value("AI/ModelName", "deepseek-flash").toString();
+    m_aiSystemPrompt = m_settings.value("AI/SystemPrompt", "You are the autonomous rover brain. Drive around safely and explore.").toString();
+    m_aiAutoLoop = m_settings.value("AI/AutoLoop", false).toBool();
+    m_aiLoopIntervalMs = m_settings.value("AI/LoopIntervalMs", 2000).toInt();
+    m_aiBaseUrl = m_settings.value("AI/BaseUrl", "https://api.deepseek.com").toString();
+    m_aiSupportsVision = m_settings.value("AI/SupportsVision", false).toBool();
+    m_aiUserInstruction = m_settings.value("AI/UserInstruction", "").toString();
 }
 
 int AppSettings::radarPointLifetimeMs() const {
@@ -240,4 +248,68 @@ void AppSettings::setLastActiveIp(const QString& ip) {
     m_lastActiveIp = ip;
     m_settings.setValue("Network/LastActiveIp", m_lastActiveIp);
     emit lastActiveIpChanged();
+}
+
+void AppSettings::setAiApiKey(const QString& key) {
+    if (m_aiApiKey != key) {
+        m_aiApiKey = key;
+        m_settings.setValue("AI/ApiKey", key);
+        emit aiApiKeyChanged();
+    }
+}
+
+void AppSettings::setAiModelName(const QString& name) {
+    if (m_aiModelName != name) {
+        m_aiModelName = name;
+        m_settings.setValue("AI/ModelName", name);
+        emit aiModelNameChanged();
+    }
+}
+
+void AppSettings::setAiSystemPrompt(const QString& prompt) {
+    if (m_aiSystemPrompt != prompt) {
+        m_aiSystemPrompt = prompt;
+        m_settings.setValue("AI/SystemPrompt", prompt);
+        emit aiSystemPromptChanged();
+    }
+}
+
+void AppSettings::setAiAutoLoop(bool loop) {
+    if (m_aiAutoLoop != loop) {
+        m_aiAutoLoop = loop;
+        m_settings.setValue("AI/AutoLoop", loop);
+        emit aiAutoLoopChanged();
+    }
+}
+
+void AppSettings::setAiLoopIntervalMs(int ms) {
+    if (m_aiLoopIntervalMs != ms) {
+        m_aiLoopIntervalMs = ms;
+        m_settings.setValue("AI/LoopIntervalMs", ms);
+        emit aiLoopIntervalMsChanged();
+    }
+}
+
+void AppSettings::setAiBaseUrl(const QString& url) {
+    if (m_aiBaseUrl != url) {
+        m_aiBaseUrl = url;
+        m_settings.setValue("AI/BaseUrl", url);
+        emit aiBaseUrlChanged();
+    }
+}
+
+void AppSettings::setAiSupportsVision(bool on) {
+    if (m_aiSupportsVision != on) {
+        m_aiSupportsVision = on;
+        m_settings.setValue("AI/SupportsVision", on);
+        emit aiSupportsVisionChanged();
+    }
+}
+
+void AppSettings::setAiUserInstruction(const QString& instruction) {
+    if (m_aiUserInstruction != instruction) {
+        m_aiUserInstruction = instruction;
+        m_settings.setValue("AI/UserInstruction", instruction);
+        emit aiUserInstructionChanged();
+    }
 }

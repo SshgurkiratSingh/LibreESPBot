@@ -392,6 +392,13 @@ Window {
                             font.pixelSize: 12
                             onClicked: executeToolPanelOverlay.visible = !executeToolPanelOverlay.visible
                         }
+
+                        Button {
+                            Layout.fillWidth: true
+                            text: "AI Agent"
+                            font.pixelSize: 12
+                            onClicked: aiAgentPanelOverlay.visible = !aiAgentPanelOverlay.visible
+                        }
                     }
                 }
             }
@@ -1429,6 +1436,8 @@ Window {
                         }
                     }
                 }
+
+                // AI Agent removed from settings tab
             }
         }
     }
@@ -1461,6 +1470,46 @@ Window {
         onVisibleChanged: {
             if (!visible && typeof rootItem !== "undefined") {
                 rootItem.forceActiveFocus();
+            }
+        }
+    }
+
+    // Fullscreen AI Agent Overlay
+    Rectangle {
+        id: aiAgentPanelOverlay
+        anchors.fill: parent
+        color: "#E6000000" // Semi-transparent black background
+        visible: false
+        z: 200 // Highest priority overlay
+        
+        AiAgentPanel {
+            anchors.fill: parent
+            anchors.margins: 40 // Padding around the panel
+            aiEngine: typeof AiEngine !== "undefined" ? AiEngine : null
+            aiImageStore: typeof AiImageStoreModel !== "undefined" ? AiImageStoreModel : null
+            aiMemoryStore: typeof AiMemoryStoreModel !== "undefined" ? AiMemoryStoreModel : null
+            
+            // Allow closing the panel from within if we add a close button, or via clicking outside?
+            // Let's add a close button inside AiAgentPanel later. For now, a top-right close button here:
+            Button {
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 10
+                text: "X"
+                width: 40
+                height: 40
+                background: Rectangle {
+                    color: parent.down ? "#b71c1c" : "#d32f2f"
+                    radius: 20
+                }
+                contentItem: Text {
+                    text: "X"
+                    color: "white"
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                onClicked: aiAgentPanelOverlay.visible = false
             }
         }
     }

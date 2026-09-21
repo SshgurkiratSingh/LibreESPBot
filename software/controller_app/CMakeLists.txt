@@ -38,6 +38,11 @@ set(SOURCES
     src/core/JoystickHandler.cpp
     src/tools/PanoramaBuilder.cpp
     src/tools/TurningCalibrator.cpp
+    src/ai/AiImageStore.cpp
+    src/ai/AiMemoryStore.cpp
+    src/ai/AiAgentEngine.cpp
+    src/ai/AiToolDispatcher.cpp
+    src/ai/AiVision.cpp
 )
 
 qt_add_executable(LibreESPBot ${SOURCES})
@@ -71,6 +76,7 @@ qt_add_qml_module(LibreESPBot
         qml/components/RoverHud.qml
         qml/components/ScriptPanel.qml
         qml/components/ExecuteToolPanel.qml
+        qml/components/AiAgentPanel.qml
         qml/theme/Theme.qml
 )
 

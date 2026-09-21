@@ -16,6 +16,14 @@
 #include "core/JoystickHandler.hpp"
 #include "tools/PanoramaBuilder.hpp"
 #include "tools/TurningCalibrator.hpp"
+#include <QDir>
+#include <QFile>
+#include <QTextStream>
+#include <QRegularExpression>
+#include "ai/AiAgentEngine.hpp"
+#include "ai/AiToolDispatcher.hpp"
+#include "ai/AiImageStore.hpp"
+#include "ai/AiMemoryStore.hpp"
 
 #include <QQuickStyle>
 
@@ -87,11 +95,108 @@ int main(int argc, char *argv[])
     PanoramaBuilder  panoramaBuilder(&commandEmitter, &telemetryClient, &videoManager);
     TurningCalibrator turningCalibrator(&commandEmitter, &telemetryClient);
 
+    AiAgentEngine    aiEngine;
+    AiToolDispatcher aiDispatcher;
+    AiImageStore     aiImageStore;
+    AiMemoryStore    aiMemoryStore;
+
     // Cross-link telemetry ↔ commandEmitter for PONG tracking
     commandEmitter.setTelemetryClient(&telemetryClient);
 
     // Expose to QML
     videoManager.setCommandEmitter(&commandEmitter);
+
+    // Link AI Agent to Dispatcher
+    QObject::connect(&aiEngine, &AiAgentEngine::toolCallReady, &aiDispatcher, &AiToolDispatcher::dispatchTool);
+    
+    // Link Dispatcher to Actual Systems
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::executeScriptRequested, &scriptEngine, &ScriptEngine::runScript);
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::stopRoverRequested, &scriptEngine, &ScriptEngine::stopScript);
+    
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::saveImageRequested, &aiImageStore, [&videoManager, &aiImageStore](QString label) {
+        QByteArray bytes = QByteArray::fromBase64(videoManager.currentFrameBase64().toUtf8());
+        QImage img;
+        img.loadFromData(bytes);
+        aiImageStore.saveImage(img, label);
+    });
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::saveImageToMemoryRequested, &aiImageStore, [&videoManager, &aiImageStore](QString key) {
+        QByteArray bytes = QByteArray::fromBase64(videoManager.currentFrameBase64().toUtf8());
+        QImage img;
+        img.loadFromData(bytes);
+        aiImageStore.saveImageToMemory(img, key);
+    });
+    // Persistent text memory (remember / recall_memory tools).
+    aiEngine.setMemoryStore(&aiMemoryStore);
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::rememberRequested, &aiMemoryStore, [&aiMemoryStore](QString text) {
+        aiMemoryStore.remember(text);
+    });
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::recallMemoryRequested, &aiMemoryStore, [&aiMemoryStore](QString query) {
+        qDebug() << "[AI] recall_memory query:" << query;
+    });
+    // describe_view is primarily handled inside AiAgentEngine (it builds the text
+    // description + stores it in the image store); this just surfaces the call.
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::describeViewRequested, [&](QString key) {
+        qDebug() << "[AI] describe_view requested, store key:" << key;
+    });
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::setHeadlightRequested, &commandEmitter, &CommandEmitter::setHeadlightMode);
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::takePanoramaRequested, &panoramaBuilder, &PanoramaBuilder::startPanorama);
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::sweepRadarRequested, &commandEmitter, [&commandEmitter](int speed) {
+        commandEmitter.setRadarSweepSpeed(speed);
+        commandEmitter.setRadarSweep(speed > 0);
+    });
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::loopEnableRequested, &appSettings, &AppSettings::setAiAutoLoop);
+    QObject::connect(&aiDispatcher, &AiToolDispatcher::generateReportRequested, [&](QString title, QString content, QStringList imageKeys) {
+        QDir reportDir("reports");
+        if (!reportDir.exists()) {
+            QDir().mkdir("reports");
+        }
+        
+        QString filename = "reports/" + title.replace(" ", "_").replace(QRegularExpression("[^a-zA-Z0-9_]"), "").toLower() + ".md";
+        QFile file(filename);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << "# " << title << "\n\n";
+            out << content << "\n\n";
+            
+            if (!imageKeys.isEmpty()) out << "## Attached Images\n\n";
+            for (const QString& key : imageKeys) {
+                QImage img = aiImageStore.getImageFromMemory(key);
+                if (!img.isNull()) {
+                    QString imgFilename = key + ".png";
+                    img.save("reports/" + imgFilename);
+                    out << "![" << key << "](" << imgFilename << ")\n\n";
+                }
+            }
+            file.close();
+            qDebug() << "Report generated:" << filename;
+        }
+    });
+
+    // Provide AppSettings to AI Engine
+    QObject::connect(&appSettings, &AppSettings::aiApiKeyChanged, [&]() {
+        aiEngine.setApiKey(appSettings.aiApiKey());
+    });
+    QObject::connect(&appSettings, &AppSettings::aiModelNameChanged, [&]() {
+        aiEngine.setModelName(appSettings.aiModelName());
+    });
+    QObject::connect(&appSettings, &AppSettings::aiSystemPromptChanged, [&]() {
+        aiEngine.setSystemPrompt(appSettings.aiSystemPrompt());
+    });
+    QObject::connect(&appSettings, &AppSettings::aiBaseUrlChanged, [&]() {
+        aiEngine.setBaseUrl(appSettings.aiBaseUrl());
+    });
+    QObject::connect(&appSettings, &AppSettings::aiSupportsVisionChanged, [&]() {
+        aiEngine.setSupportsVision(appSettings.aiSupportsVision());
+    });
+    QObject::connect(&appSettings, &AppSettings::aiUserInstructionChanged, [&]() {
+        aiEngine.setUserInstruction(appSettings.aiUserInstruction());
+    });
+    aiEngine.setApiKey(appSettings.aiApiKey());
+    aiEngine.setModelName(appSettings.aiModelName());
+    aiEngine.setSystemPrompt(appSettings.aiSystemPrompt());
+    aiEngine.setBaseUrl(appSettings.aiBaseUrl());
+    aiEngine.setSupportsVision(appSettings.aiSupportsVision());
+    aiEngine.setUserInstruction(appSettings.aiUserInstruction());
 
     engine.rootContext()->setContextProperty("telemetryClient", &telemetryClient);
     engine.rootContext()->setContextProperty("commandEmitter",  &commandEmitter);
@@ -105,6 +210,19 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("panoramaBuilder", &panoramaBuilder);
     engine.rootContext()->setContextProperty("turningCalibrator", &turningCalibrator);
     engine.rootContext()->setContextProperty("nodeRegistry",    &nodeRegistry);
+    
+    aiEngine.setImageStore(&aiImageStore);
+    aiEngine.setFrameProvider([&videoManager]() {
+        QImage img;
+        QString b64 = videoManager.currentFrameBase64();
+        if (!b64.isEmpty()) {
+            img.loadFromData(QByteArray::fromBase64(b64.toUtf8()));
+        }
+        return img;
+    });
+    engine.rootContext()->setContextProperty("AiEngine", &aiEngine);
+    engine.rootContext()->setContextProperty("AiImageStoreModel", &aiImageStore);
+    engine.rootContext()->setContextProperty("AiMemoryStoreModel", &aiMemoryStore);
 
     // Start networking layers
     discoveryWorker.startDiscovery();

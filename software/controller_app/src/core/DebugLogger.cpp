@@ -34,4 +34,6 @@ void customMessageHandler(QtMsgType type, const QMessageLogContext &context, con
         case QtInfoMsg:     txt = QString("[Info] %1").arg(msg); break;
     }
     DebugLogger::instance()->addMessage(txt);
+    fprintf(stderr, "%s\n", txt.toUtf8().constData());
+    fflush(stderr);
 }

@@ -28,6 +28,15 @@ class AppSettings : public QObject {
     Q_PROPERTY(QString hudColor READ hudColor WRITE setHudColor NOTIFY hudColorChanged)
     Q_PROPERTY(QString lastActiveIp READ lastActiveIp WRITE setLastActiveIp NOTIFY lastActiveIpChanged)
 
+    Q_PROPERTY(QString aiApiKey READ aiApiKey WRITE setAiApiKey NOTIFY aiApiKeyChanged)
+    Q_PROPERTY(QString aiModelName READ aiModelName WRITE setAiModelName NOTIFY aiModelNameChanged)
+    Q_PROPERTY(QString aiSystemPrompt READ aiSystemPrompt WRITE setAiSystemPrompt NOTIFY aiSystemPromptChanged)
+    Q_PROPERTY(bool aiAutoLoop READ aiAutoLoop WRITE setAiAutoLoop NOTIFY aiAutoLoopChanged)
+    Q_PROPERTY(int aiLoopIntervalMs READ aiLoopIntervalMs WRITE setAiLoopIntervalMs NOTIFY aiLoopIntervalMsChanged)
+    Q_PROPERTY(QString aiBaseUrl READ aiBaseUrl WRITE setAiBaseUrl NOTIFY aiBaseUrlChanged)
+    Q_PROPERTY(bool aiSupportsVision READ aiSupportsVision WRITE setAiSupportsVision NOTIFY aiSupportsVisionChanged)
+    Q_PROPERTY(QString aiUserInstruction READ aiUserInstruction WRITE setAiUserInstruction NOTIFY aiUserInstructionChanged)
+
 public:
     Q_PROPERTY(float pitchOffset READ pitchOffset WRITE setPitchOffset NOTIFY pitchOffsetChanged)
     Q_PROPERTY(float rollOffset READ rollOffset WRITE setRollOffset NOTIFY rollOffsetChanged)
@@ -88,6 +97,30 @@ public:
     QString lastActiveIp() const { return m_lastActiveIp; }
     void setLastActiveIp(const QString& ip);
 
+    QString aiApiKey() const { return m_aiApiKey; }
+    void setAiApiKey(const QString& key);
+
+    QString aiModelName() const { return m_aiModelName; }
+    void setAiModelName(const QString& name);
+
+    QString aiSystemPrompt() const { return m_aiSystemPrompt; }
+    void setAiSystemPrompt(const QString& prompt);
+
+    bool aiAutoLoop() const { return m_aiAutoLoop; }
+    void setAiAutoLoop(bool loop);
+
+    int aiLoopIntervalMs() const { return m_aiLoopIntervalMs; }
+    void setAiLoopIntervalMs(int ms);
+
+    QString aiBaseUrl() const { return m_aiBaseUrl; }
+    void setAiBaseUrl(const QString& url);
+
+    bool aiSupportsVision() const { return m_aiSupportsVision; }
+    void setAiSupportsVision(bool on);
+
+    QString aiUserInstruction() const { return m_aiUserInstruction; }
+    void setAiUserInstruction(const QString& instruction);
+
     float pitchOffset() const { return m_pitchOffset; }
     void setPitchOffset(float offset);
 
@@ -118,6 +151,15 @@ signals:
     void hudColorChanged();
     void lastActiveIpChanged();
 
+    void aiApiKeyChanged();
+    void aiModelNameChanged();
+    void aiSystemPromptChanged();
+    void aiAutoLoopChanged();
+    void aiLoopIntervalMsChanged();
+    void aiBaseUrlChanged();
+    void aiSupportsVisionChanged();
+    void aiUserInstructionChanged();
+
     void pitchOffsetChanged();
     void rollOffsetChanged();
 
@@ -143,4 +185,13 @@ private:
     QString m_lastActiveIp;
     float m_pitchOffset;
     float m_rollOffset;
+    
+    QString m_aiApiKey;
+    QString m_aiModelName;
+    QString m_aiSystemPrompt;
+    QString m_aiBaseUrl = QStringLiteral("https://api.deepseek.com");
+    bool m_aiAutoLoop;
+    int m_aiLoopIntervalMs;
+    bool m_aiSupportsVision = false;
+    QString m_aiUserInstruction;
 };

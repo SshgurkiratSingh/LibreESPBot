@@ -1,0 +1,80 @@
+[1/9] Building CXX object CMakeFiles/LibreESPBot.dir/.qt/rcc/qrc_LibreESPBot_raw_qml_0.cpp.o
+/bin/sh: module: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `module'
+/bin/sh: ml: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `ml'
+/bin/sh: _module_raw: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `_module_raw'
+[2/9] Building CXX object CMakeFiles/LibreESPBot.dir/.rcc/qmlcache/LibreESPBot_qml/theme/Theme_qml.cpp.o
+/bin/sh: module: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `module'
+/bin/sh: ml: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `ml'
+/bin/sh: _module_raw: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `_module_raw'
+[3/9] Building CXX object CMakeFiles/LibreESPBot.dir/.rcc/qmlcache/LibreESPBot_qml/components/JoystickMappingPanel_qml.cpp.o
+/bin/sh: module: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `module'
+/bin/sh: ml: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `ml'
+/bin/sh: _module_raw: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `_module_raw'
+[4/9] Building CXX object CMakeFiles/LibreESPBot.dir/.rcc/qmlcache/LibreESPBot_qml/components/KinematicsView3D_qml.cpp.o
+/bin/sh: module: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `module'
+/bin/sh: ml: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `ml'
+/bin/sh: _module_raw: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `_module_raw'
+[5/9] Building CXX object CMakeFiles/LibreESPBot.dir/.rcc/qmlcache/LibreESPBot_qml/components/ScriptPanel_qml.cpp.o
+/bin/sh: module: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `module'
+/bin/sh: ml: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `ml'
+/bin/sh: _module_raw: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `_module_raw'
+[6/9] Building CXX object CMakeFiles/LibreESPBot.dir/.rcc/qmlcache/LibreESPBot_qml/components/ExecuteToolPanel_qml.cpp.o
+/bin/sh: module: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `module'
+/bin/sh: ml: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `ml'
+/bin/sh: _module_raw: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `_module_raw'
+[7/9] Building CXX object CMakeFiles/LibreESPBot.dir/.rcc/qmlcache/LibreESPBot_qml/components/RoverHud_qml.cpp.o
+/bin/sh: module: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `module'
+/bin/sh: ml: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `ml'
+/bin/sh: _module_raw: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `_module_raw'
+[8/9] Building CXX object CMakeFiles/LibreESPBot.dir/src/main.cpp.o
+FAILED: [code=1] CMakeFiles/LibreESPBot.dir/src/main.cpp.o 
+/usr/bin/c++ -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_OPENGL_LIB -DQT_QMLINTEGRATION_LIB -DQT_QML_LIB -DQT_QUICKCONTROLS2_LIB -DQT_QUICK_LIB -I/home/gurkirat/Projects/ESP266-Car/build/LibreESPBot_autogen/include -I/home/gurkirat/Projects/ESP266-Car/software/controller_app -isystem /usr/include/opencv4 -isystem /usr/include/qt6/QtQml -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib64/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtQmlIntegration -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtQuick -isystem /usr/include/qt6/QtOpenGL -isystem /usr/include/qt6/QtQuickControls2 -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtConcurrent -std=gnu++17 -MD -MT CMakeFiles/LibreESPBot.dir/src/main.cpp.o -MF CMakeFiles/LibreESPBot.dir/src/main.cpp.o.d -o CMakeFiles/LibreESPBot.dir/src/main.cpp.o -c /home/gurkirat/Projects/ESP266-Car/software/controller_app/src/main.cpp
+/bin/sh: module: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `module'
+/bin/sh: ml: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `ml'
+/bin/sh: _module_raw: line 1: syntax error: unexpected end of file from `{' command on line 0
+/bin/sh: error importing function definition for `_module_raw'
+/home/gurkirat/Projects/ESP266-Car/software/controller_app/src/main.cpp: In lambda function:
+/home/gurkirat/Projects/ESP266-Car/software/controller_app/src/main.cpp:111:45: error: ‘class VideoManager’ has no member named ‘currentFrame’; did you mean ‘currentFrameBase64’?
+  111 |         aiImageStore.saveImage(videoManager.currentFrame(), label);
+      |                                             ^~~~~~~~~~~~
+      |                                             currentFrameBase64
+/home/gurkirat/Projects/ESP266-Car/software/controller_app/src/main.cpp: In lambda function:
+/home/gurkirat/Projects/ESP266-Car/software/controller_app/src/main.cpp:114:53: error: ‘class VideoManager’ has no member named ‘currentFrame’; did you mean ‘currentFrameBase64’?
+  114 |         aiImageStore.saveImageToMemory(videoManager.currentFrame(), key);
+      |                                                     ^~~~~~~~~~~~
+      |                                                     currentFrameBase64
+/home/gurkirat/Projects/ESP266-Car/software/controller_app/src/main.cpp: In function ‘int main(int, char**)’:
+/home/gurkirat/Projects/ESP266-Car/software/controller_app/src/main.cpp:172:20: warning: ‘QString QtLiterals::operator""_qs(const char16_t*, size_t)’ is deprecated: Use _s from Qt::StringLiterals namespace instead. [-Wdeprecated-declarations]
+  172 |     const QUrl url(u"qrc:/RoverControl/qml/main.qml"_qs);
+      |                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/qt6/QtCore/qcoreapplication.h:8,
+                 from /usr/include/qt6/QtGui/qguiapplication.h:8,
+                 from /usr/include/qt6/QtGui/QGuiApplication:1,
+                 from /home/gurkirat/Projects/ESP266-Car/software/controller_app/src/main.cpp:1:
+/usr/include/qt6/QtCore/qstring.h:1764:16: note: declared here
+ 1764 | inline QString operator""_qs(const char16_t *str, size_t size) noexcept
+      |                ^~~~~~~~
+ninja: build stopped: subcommand failed.
